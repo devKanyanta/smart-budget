@@ -1,0 +1,240 @@
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class ApiService {
+  static const String _baseUrl = 'http://10.0.2.2:3000/api/v1';
+  late final Dio _dio;
+  String? _accessToken;
+  String? _refreshToken;
+
+  ApiService() {
+    _dio = Dio(BaseOptions(
+      baseUrl: _baseUrl,
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+      headers: {'Content-Type': 'application/json'},
+    ));
+
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        if (_accessToken != null) {
+          options.headers['Authorization'] = 'Bearer $_accessToken';
+        }
+        handler.next(options);
+      },
+      onError: (error, handler) async {
+        if (error.response?.statusCode == 401 && _refreshToken != null) {
+          try {
+            final refreshed = await _refreshAccessToken();
+            if (refreshed) {
+              error.requestOptions.headers['Authorization'] = 'Bearer $_accessToken';
+              final response = await _dio.fetch(error.requestOptions);
+              return handler.resolve(response);
+            }
+          } catch (_) {
+            // Refresh failed, proceed with original error
+          }
+        }
+        handler.next(error);
+      },
+    ));
+  }
+
+  void setTokens({required String accessToken, required String refreshToken}) {
+    _accessToken = accessToken;
+    _refreshToken = refreshToken;
+  }
+
+  void clearTokens() {
+    _accessToken = null;
+    _refreshToken = null;
+  }
+
+  Future<bool> _refreshAccessToken() async {
+    try {
+      final response = await _dio.post('/auth/refresh', data: {
+        'refresh_token': _refreshToken,
+      });
+      if (response.statusCode == 200) {
+        final data = response.data['data'];
+        _accessToken = data['accessToken'];
+        _refreshToken = data['refreshToken'];
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  // ── Auth ──
+  Future<Map<String, dynamic>> register({
+    required String email,
+    required String fullName,
+    String? phoneNumber,
+    required String password,
+    required String confirmPassword,
+  }) async {
+    final response = await _dio.post('/auth/register', data: {
+      'email': email,
+      'full_name': fullName,
+      'phone_number': phoneNumber,
+      'password': password,
+      'confirm_password': confirmPassword,
+    });
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final response = await _dio.post('/auth/login', data: {
+      'email': email,
+      'password': password,
+    });
+    return response.data;
+  }
+
+  Future<void> logout() async {
+    try {
+      await _dio.post('/auth/logout');
+    } catch (_) {}
+    clearTokens();
+  }
+
+  // ── Profile ──
+  Future<Map<String, dynamic>> getProfile() async {
+    final response = await _dio.get('/users/me');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> data) async {
+    final response = await _dio.put('/users/me', data: data);
+    return response.data;
+  }
+
+  // ── Transactions ──
+  Future<Map<String, dynamic>> getTransactions({Map<String, dynamic>? params}) async {
+    final response = await _dio.get('/transactions', queryParameters: params);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> createTransaction(Map<String, dynamic> data) async {
+    final response = await _dio.post('/transactions', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> updateTransaction(String id, Map<String, dynamic> data) async {
+    final response = await _dio.put('/transactions/$id', data: data);
+    return response.data;
+  }
+
+  Future<void> deleteTransaction(String id) async {
+    await _dio.delete('/transactions/$id');
+  }
+
+  Future<Map<String, dynamic>> getTransactionSummary({String? startDate, String? endDate}) async {
+    final response = await _dio.get('/transactions/summary', queryParameters: {
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+    });
+    return response.data;
+  }
+
+  // ── Categories ──
+  Future<Map<String, dynamic>> getCategories() async {
+    final response = await _dio.get('/categories');
+    return response.data;
+  }
+
+  // ── Budgets ──
+  Future<Map<String, dynamic>> getBudgets() async {
+    final response = await _dio.get('/budgets');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> createBudget(Map<String, dynamic> data) async {
+    final response = await _dio.post('/budgets', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> updateBudget(String id, Map<String, dynamic> data) async {
+    final response = await _dio.put('/budgets/$id', data: data);
+    return response.data;
+  }
+
+  Future<void> deleteBudget(String id) async {
+    await _dio.delete('/budgets/$id');
+  }
+
+  // ── Savings ──
+  Future<Map<String, dynamic>> getSavingsGoals() async {
+    final response = await _dio.get('/savings');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> createSavingsGoal(Map<String, dynamic> data) async {
+    final response = await _dio.post('/savings', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> addSavingsEntry(String goalId, Map<String, dynamic> data) async {
+    final response = await _dio.post('/savings/$goalId/entries', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getSavingsPrediction(String goalId) async {
+    final response = await _dio.get('/savings/$goalId/predictions');
+    return response.data;
+  }
+
+  // ── Analytics ──
+  Future<Map<String, dynamic>> getDashboard() async {
+    final response = await _dio.get('/analytics/dashboard');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getMonthlyComparison({int months = 6}) async {
+    final response = await _dio.get('/analytics/monthly-comparison', queryParameters: {'months': months});
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getCategoryBreakdown({String? startDate, String? endDate}) async {
+    final response = await _dio.get('/analytics/category-breakdown', queryParameters: {
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+    });
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getSpendingTrends({int months = 12}) async {
+    final response = await _dio.get('/analytics/trends', queryParameters: {'months': months});
+    return response.data;
+  }
+
+  // ── Insights ──
+  Future<Map<String, dynamic>> getInsights() async {
+    final response = await _dio.get('/insights/tips');
+    return response.data;
+  }
+
+  // ── Notifications ──
+  Future<Map<String, dynamic>> getNotifications({int page = 1}) async {
+    final response = await _dio.get('/notifications', queryParameters: {'page': page});
+    return response.data;
+  }
+
+  // ── Mobile Money ──
+  Future<Map<String, dynamic>> getMobileMoneyAccounts() async {
+    final response = await _dio.get('/mobile-money/accounts');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> connectMobileMoney(Map<String, dynamic> data) async {
+    final response = await _dio.post('/mobile-money/accounts', data: data);
+    return response.data;
+  }
+
+  Future<void> syncMobileMoney(String accountId) async {
+    await _dio.post('/mobile-money/accounts/$accountId/sync');
+  }
+}
