@@ -6,7 +6,6 @@ import 'app/app.dart';
 import 'core/services/api_service.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/storage_service.dart';
-import 'core/providers/auth_provider.dart';
 import 'core/providers/transaction_provider.dart';
 import 'core/providers/budget_provider.dart';
 import 'core/providers/savings_provider.dart';

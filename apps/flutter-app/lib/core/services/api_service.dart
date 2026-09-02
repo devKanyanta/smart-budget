@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String _baseUrl = 'http://10.0.2.2:3000/api/v1';
+  static const String _baseUrl = 'http://192.168.0.190:3000/api/v1';
   late final Dio _dio;
   String? _accessToken;
   String? _refreshToken;

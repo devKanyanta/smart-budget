@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/services/auth_service.dart';
+import '../common/app_colors.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -11,7 +12,8 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -19,101 +21,188 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
+  late AnimationController _animController;
+  late Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      duration: const Duration(milliseconds: 700),
+      vsync: this,
+    );
+    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _animController.forward();
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
+      body: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.heroSolid,
+        ),
+        height: double.maxFinite,
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnim,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Column(
                 children: [
-                  Text('Join Smart Budget ZM',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text('Start managing your finances today',
-                    style: TextStyle(color: Colors.grey[600])),
-                  const SizedBox(height: 32),
-
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(labelText: 'Full Name', prefixIcon: Icon(Icons.person_outlined)),
-                    validator: (v) => v != null && v.length >= 2 ? null : 'Name must be at least 2 characters',
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
-                    validator: (v) => v?.contains('@') == true ? null : 'Enter a valid email',
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone Number (optional)',
-                      prefixIcon: Icon(Icons.phone_outlined),
-                      prefixText: '+260 ',
+                  const SizedBox(height: 40),
+                  // Logo
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(22),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outlined),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
+                    child: const Icon(
+                      Icons.person_add_rounded,
+                      color: Colors.white,
+                      size: 40,
                     ),
-                    validator: (v) {
-                      if (v == null || v.length < 8) return 'Password must be at least 8 characters';
-                      if (!RegExp(r'[a-zA-Z]').hasMatch(v)) return 'Must contain at least one letter';
-                      if (!RegExp(r'[0-9]').hasMatch(v)) return 'Must contain at least one number';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Confirm Password', prefixIcon: Icon(Icons.lock_outlined)),
-                    validator: (v) => v == _passwordController.text ? null : 'Passwords do not match',
                   ),
                   const SizedBox(height: 24),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: auth.isLoading ? null : _handleRegister,
-                      child: auth.isLoading
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Create Account'),
+                  Text(
+                    'Create Account',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 16),
-
+                  const SizedBox(height: 8),
+                  Text(
+                    'Start managing your finances today',
+                    style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 15),
+                  ),
+                  const SizedBox(height: 32),
+                  // Form card
+                  _buildFormCard(auth),
+                  const SizedBox(height: 24),
                   TextButton(
                     onPressed: () => context.go('/login'),
-                    child: const Text('Already have an account? Login'),
+                    child: Text(
+                      'Already have an account? Login',
+                      style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
+                    ),
                   ),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormCard(AuthService auth) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Full Name',
+                prefixIcon: const Icon(Icons.person_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              validator: (v) => v != null && v.length >= 2 ? null : 'Name must be at least 2 characters',
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'Email',
+                prefixIcon: const Icon(Icons.email_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              validator: (v) => v?.contains('@') == true ? null : 'Enter a valid email',
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Phone Number (optional)',
+                prefixIcon: const Icon(Icons.phone_outlined),
+                prefixText: '+260 ',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              decoration: InputDecoration(
+                labelText: 'Password',
+                prefixIcon: const Icon(Icons.lock_outlined),
+                suffixIcon: IconButton(
+                  icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              validator: (v) {
+                if (v == null || v.length < 8) return 'Password must be at least 8 characters';
+                if (!RegExp(r'[a-zA-Z]').hasMatch(v)) return 'Must contain at least one letter';
+                if (!RegExp(r'[0-9]').hasMatch(v)) return 'Must contain at least one number';
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _confirmPasswordController,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'Confirm Password',
+                prefixIcon: const Icon(Icons.lock_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              validator: (v) => v == _passwordController.text ? null : 'Passwords do not match',
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 52,
+              child: ElevatedButton(
+                onPressed: auth.isLoading ? null : _handleRegister,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 2,
+                ),
+                child: auth.isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                      )
+                    : const Text('Create Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -135,7 +224,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       context.go('/');
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration failed. Please try again.'), backgroundColor: Colors.red),
+        SnackBar(
+          content: const Text('Registration failed. Please try again.'),
+          backgroundColor: AppColors.expense,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
     }
   }
@@ -147,6 +241,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _animController.dispose();
     super.dispose();
   }
 }

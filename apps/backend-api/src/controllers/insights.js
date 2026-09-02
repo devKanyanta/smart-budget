@@ -60,7 +60,7 @@ const getPersonalizedTips = async (req, res, next) => {
         type: 'expense',
         transaction_date: { [Op.gte]: monthStart },
       },
-      group: ['category_id', 'Category.id', 'Category.name'],
+      group: ['category_id', 'category.id', 'category.name'],
       include: [{ model: Category, as: 'category', attributes: ['name'] }],
     });
 

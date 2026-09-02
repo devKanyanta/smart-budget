@@ -3,7 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers/dashboard_provider.dart';
-import '../../core/providers/transaction_provider.dart';
+import '../common/app_colors.dart';
+import '../common/app_widgets.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -14,175 +15,400 @@ class DashboardScreen extends StatelessWidget {
     final data = dashboard.dashboardData;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Smart Budget ZM'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.go('/settings'),
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.background,
       body: dashboard.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : RefreshIndicator(
               onRefresh: () => dashboard.fetchDashboard(),
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // Monthly Summary Cards
-                  if (data != null) ...[
-                    _buildSummaryRow(context, data),
-                    const SizedBox(height: 16),
-                    _buildBudgetProgress(context, data),
-                    const SizedBox(height: 16),
-                    _buildSavingsProgress(context, data),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Recent Transactions
-                  _buildSectionTitle(context, 'Recent Transactions'),
-                  const SizedBox(height: 8),
-                  if (data?['recent_transactions'] != null)
-                    ...(data!['recent_transactions'] as List).map(
-                      (t) => _buildTransactionTile(t),
+              color: AppColors.primary,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  // Solid header
+                  SliverToBoxAdapter(child: _buildHeader(context, data)),
+                  // Content
+                  SliverPadding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 24),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        // Summary cards
+                        if (data != null) ...[
+                          _buildSummaryCards(context, data),
+                          const SizedBox(height: 8),
+                          _buildBudgetCard(context, data),
+                          const SizedBox(height: 8),
+                          _buildSavingsCard(context, data),
+                        ],
+                        const SizedBox(height: 8),
+                        // Recent Transactions
+                        SectionHeader(
+                          title: 'Recent Transactions',
+                          actionText: 'See All',
+                          onAction: () => context.go('/transactions'),
+                        ),
+                        if (data?['recent_transactions'] != null)
+                          ...(data!['recent_transactions'] as List).take(5).map(
+                            (t) => _buildTransactionTile(t),
+                          ),
+                        if (data?['recent_transactions'] == null ||
+                            (data!['recent_transactions'] as List).isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: EmptyState(
+                              icon: Icons.receipt_long_outlined,
+                              title: 'No Transactions Yet',
+                              subtitle: 'Start tracking your income and expenses',
+                              actionText: 'Add Transaction',
+                              onAction: () => context.go('/transactions'),
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        // Financial Insights
+                        const SectionHeader(title: 'Financial Insights'),
+                        if (dashboard.insights.isNotEmpty)
+                          ...dashboard.insights.take(3).map(
+                            (insight) => _buildInsightCard(insight),
+                          ),
+                        if (dashboard.insights.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primarySurface,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.lightbulb_outline,
+                                        color: AppColors.primary,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Text(
+                                        'Add more transactions to get personalized financial insights',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                      ]),
                     ),
-                  const SizedBox(height: 16),
-
-                  // Financial Insights
-                  _buildSectionTitle(context, 'Financial Insights'),
-                  const SizedBox(height: 8),
-                  if (dashboard.insights.isNotEmpty)
-                    ...dashboard.insights.take(3).map(
-                      (insight) => _buildInsightCard(insight),
-                    ),
+                  ),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildSummaryRow(BuildContext context, Map<String, dynamic> data) {
-    final summary = data['monthly_summary'] ?? {};
-    return Row(
-      children: [
-        Expanded(child: _buildSummaryCard(
-          'Income', 'K${(summary['income'] ?? 0).toStringAsFixed(2)}',
-          Icons.arrow_upward, Colors.green,
-        )),
-        const SizedBox(width: 8),
-        Expanded(child: _buildSummaryCard(
-          'Expenses', 'K${(summary['expenses'] ?? 0).toStringAsFixed(2)}',
-          Icons.arrow_downward, Colors.red,
-        )),
-        const SizedBox(width: 8),
-        Expanded(child: _buildSummaryCard(
-          'Net', 'K${(summary['net'] ?? 0).toStringAsFixed(2)}',
-          Icons.account_balance_wallet, Colors.blue,
-        )),
-      ],
-    );
-  }
-
-  Widget _buildSummaryCard(String title, String amount, IconData icon, Color color) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 4),
-            Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            const SizedBox(height: 2),
-            Text(amount, style: TextStyle(
-              fontSize: 14, fontWeight: FontWeight.bold, color: color,
-            )),
-          ],
+  Widget _buildHeader(BuildContext context, Map<String, dynamic>? data) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      decoration: const BoxDecoration(
+        color: AppColors.heroSolid,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
       ),
-    );
-  }
-
-  Widget _buildBudgetProgress(BuildContext context, Map<String, dynamic> data) {
-    final budgets = data['budgets'] ?? {};
-    final totalBudget = (budgets['total_budget'] ?? 0).toDouble();
-    final totalSpent = (budgets['total_spent'] ?? 0).toDouble();
-    final progress = totalBudget > 0 ? totalSpent / totalBudget : 0.0;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      child: SafeArea(
+        bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Monthly Budget', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: progress.clamp(0, 1),
-              backgroundColor: Colors.grey[200],
-              color: progress > 0.9 ? Colors.red : progress > 0.7 ? Colors.orange : Colors.green,
-              minHeight: 8,
-            ),
-            const SizedBox(height: 8),
+            // Top bar
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('K${totalSpent.toStringAsFixed(0)} spent'),
-                Text('K${totalBudget.toStringAsFixed(0)} budget'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSavingsProgress(BuildContext context, Map<String, dynamic> data) {
-    final savings = data['savings'] ?? {};
-    final target = (savings['total_target'] ?? 0).toDouble();
-    final saved = (savings['total_saved'] ?? 0).toDouble();
-    final progress = target > 0 ? saved / target : 0.0;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Savings Goals', style: TextStyle(fontWeight: FontWeight.bold)),
-                TextButton(
-                  onPressed: () => context.go('/savings'),
-                  child: const Text('View All'),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Good ${_getGreeting()}',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Smart Budget ZM',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    _buildHeaderIcon(
+                      icon: Icons.notifications_outlined,
+                      onTap: () {},
+                    ),
+                    const SizedBox(width: 8),
+                    _buildHeaderIcon(
+                      icon: Icons.settings_outlined,
+                      onTap: () => context.go('/settings'),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            if (target > 0) ...[
-              LinearProgressIndicator(
-                value: progress.clamp(0, 1),
-                backgroundColor: Colors.grey[200],
-                color: Colors.blue,
-                minHeight: 8,
+            const SizedBox(height: 24),
+            // Quick balance
+            if (data != null) ...[
+              Text(
+                'Monthly Overview',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              const SizedBox(height: 8),
-              Text('K${saved.toStringAsFixed(0)} saved of K${target.toStringAsFixed(0)} target'),
-            ] else
-              const Text('No active savings goals. Tap "Savings" to create one.'),
+              const SizedBox(height: 4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'K${((data['monthly_summary']?['income'] ?? 0) as num).toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      'total income',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(BuildContext context, String title) {
-    return Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold));
+  Widget _buildHeaderIcon({required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: Colors.white, size: 22),
+      ),
+    );
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Morning';
+    if (hour < 17) return 'Afternoon';
+    return 'Evening';
+  }
+
+  Widget _buildSummaryCards(BuildContext context, Map<String, dynamic> data) {
+    final summary = data['monthly_summary'] ?? {};
+    final income = (summary['income'] ?? 0).toDouble();
+    final expenses = (summary['expenses'] ?? 0).toDouble();
+    final net = (summary['net'] ?? 0).toDouble();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: StatCard(
+              label: 'Income',
+              value: 'K${income.toStringAsFixed(0)}',
+              icon: Icons.arrow_upward_rounded,
+              color: AppColors.incomeSolid,
+              isCompact: true,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: StatCard(
+              label: 'Expenses',
+              value: 'K${expenses.toStringAsFixed(0)}',
+              icon: Icons.arrow_downward_rounded,
+              color: AppColors.expenseSolid,
+              isCompact: true,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: StatCard(
+              label: 'Net Balance',
+              value: 'K${net.toStringAsFixed(0)}',
+              icon: Icons.account_balance_wallet_rounded,
+              color: net >= 0 ? AppColors.blueSolid : AppColors.orangeSolid,
+              isCompact: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBudgetCard(BuildContext context, Map<String, dynamic> data) {
+    final budgets = data['budgets'] ?? {};
+    final totalBudget = double.tryParse((budgets['total_budget'] ?? 0).toString()) ?? 0.0;
+    final totalSpent = double.tryParse((budgets['total_spent'] ?? 0).toString()) ?? 0.0;
+    final progress = totalBudget > 0 ? (totalSpent / totalBudget).clamp(0.0, 1.0) : 0.0;
+
+    return AppCard(
+      onTap: () => context.go('/budgets'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySurface,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.pie_chart_rounded, color: AppColors.primary, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Monthly Budget',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ],
+              ),
+              const Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SolidProgressIndicator(
+            progress: progress.toDouble(),
+            height: 10,
+            borderRadius: 5,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'K${totalSpent.toStringAsFixed(0)} spent',
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              ),
+              Text(
+                'K${totalBudget.toStringAsFixed(0)} budget',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSavingsCard(BuildContext context, Map<String, dynamic> data) {
+    final savings = data['savings'] ?? {};
+    final target = double.tryParse((savings['total_target'] ?? 0).toString()) ?? 0.0;
+    final saved = double.tryParse((savings['total_saved'] ?? 0).toString()) ?? 0.0;
+    final progress = target > 0 ? (saved / target).clamp(0.0, 1.0) : 0.0;
+
+    return AppCard(
+      onTap: () => context.go('/savings'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE3F2FD),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.savings_rounded, color: AppColors.savings, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Savings Goals',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ],
+              ),
+              const Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (target > 0) ...[
+            SolidProgressIndicator(
+              progress: progress.toDouble(),
+              color: AppColors.blueSolid,
+              height: 10,
+              borderRadius: 5,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'K${saved.toStringAsFixed(0)} saved',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+                Text(
+                  'K${target.toStringAsFixed(0)} target',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+              ],
+            ),
+          ] else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Icon(Icons.add_circle_outline, color: Colors.grey[400], size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'No active savings goals. Tap to create one.',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _buildTransactionTile(Map<String, dynamic> transaction) {
@@ -190,38 +416,113 @@ class DashboardScreen extends StatelessWidget {
     final isIncome = transaction['type'] == 'income';
     final amount = double.tryParse(transaction['amount'].toString()) ?? 0;
 
-    return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: isIncome ? Colors.green[50] : Colors.red[50],
-          child: Icon(
-            isIncome ? Icons.arrow_upward : Icons.arrow_downward,
-            color: isIncome ? Colors.green : Colors.red,
-            size: 18,
+    return AppCard(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: isIncome ? AppColors.incomeSolid : AppColors.expenseSolid,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              isIncome ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
-        ),
-        title: Text(transaction['description'] ?? 'Transaction', maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(category?['name'] ?? 'Uncategorized'),
-        trailing: Text(
-          '${isIncome ? '+' : '-'}K${amount.toStringAsFixed(2)}',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isIncome ? Colors.green : Colors.red,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  transaction['description'] ?? 'Transaction',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  category?['name'] ?? 'Uncategorized',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
+              ],
+            ),
           ),
-        ),
+          Text(
+            '${isIncome ? '+' : '-'}K${amount.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: isIncome ? AppColors.income : AppColors.expense,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildInsightCard(Map<String, dynamic> insight) {
     final priority = insight['priority'];
-    final color = priority == 'high' ? Colors.orange : priority == 'medium' ? Colors.blue : Colors.grey;
+    final Color color;
+    final IconData icon;
+    final Color bgColor;
 
-    return Card(
-      child: ListTile(
-        leading: Icon(Icons.lightbulb_outline, color: color),
-        title: Text(insight['title'] ?? '', style: const TextStyle(fontSize: 14)),
-        subtitle: Text(insight['body'] ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+    switch (priority) {
+      case 'high':
+        color = AppColors.warning;
+        icon = Icons.warning_amber_rounded;
+        bgColor = const Color(0xFFFFF3E0);
+        break;
+      case 'medium':
+        color = AppColors.accentBlue;
+        icon = Icons.info_outline;
+        bgColor = const Color(0xFFE3F2FD);
+        break;
+      default:
+        color = AppColors.primary;
+        icon = Icons.lightbulb_outline;
+        bgColor = AppColors.primarySurface;
+    }
+
+    return AppCard(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  insight['title'] ?? '',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  insight['body'] ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -83,7 +83,7 @@ async function start() {
     await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
     console.log('✅ Database synced');
 
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Smart Budget ZM API running on port ${PORT}`);
     });
   } catch (error) {

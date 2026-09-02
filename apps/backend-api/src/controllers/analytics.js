@@ -64,7 +64,7 @@ const getDashboard = async (req, res, next) => {
         type: 'expense',
         transaction_date: { [Op.gte]: monthStart, [Op.lte]: monthEnd },
       },
-      group: ['category_id', 'Category.id', 'Category.name', 'Category.icon', 'Category.color'],
+      group: ['category_id', 'category.id', 'category.name', 'category.icon', 'category.color'],
       include: [{ model: Category, as: 'category', attributes: ['name', 'icon', 'color'] }],
       order: [[literal('total'), 'DESC']],
       limit: 5,
@@ -166,7 +166,7 @@ const getCategoryBreakdown = async (req, res, next) => {
         [fn('COUNT', col('Transaction.id')), 'count'],
       ],
       where,
-      group: ['category_id', 'Category.id', 'Category.name', 'Category.icon', 'Category.color'],
+      group: ['category_id', 'category.id', 'category.name', 'category.icon', 'category.color'],
       include: [{ model: Category, as: 'category', attributes: ['name', 'icon', 'color'] }],
       order: [[literal('total'), 'DESC']],
     });
