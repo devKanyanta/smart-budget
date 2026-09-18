@@ -1,5 +1,6 @@
 const { Transaction, Category, User } = require('../models');
 const { paginate, buildPaginationResponse, Op } = require('../utils/pagination');
+const { checkSpendingControls, evaluateBudgetAlerts } = require('../services/budgetAlerts');
 
 // GET /api/v1/transactions
 const listTransactions = async (req, res, next) => {
@@ -116,6 +117,23 @@ const createTransaction = async (req, res, next) => {
       is_recurring, tags,
     } = req.validated.body;
 
+    // ── Spending control: block expenses that would exceed a strict (enforced) budget ──
+    if (type === 'expense') {
+      const controls = await checkSpendingControls(req.userId, { amount, categoryId: category_id });
+      if (!controls.allowed) {
+        const blocked = controls.blockedBy[0];
+        await evaluateBudgetAlerts(req.userId);
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'BUDGET_LIMIT_EXCEEDED',
+            message: `Transaction blocked: would exceed your ${blocked.name} budget of K${blocked.limit.toFixed(2)} by K${blocked.wouldExceedBy.toFixed(2)}.`,
+            details: controls.blockedBy,
+          },
+        });
+      }
+    }
+
     // If no category provided, try auto-categorization via ML service
     let finalCategoryId = category_id;
     let categorySource = category_id ? 'manual' : 'auto';
@@ -163,6 +181,11 @@ const createTransaction = async (req, res, next) => {
     const result = await Transaction.findByPk(transaction.id, {
       include: [{ model: Category, as: 'category', attributes: ['id', 'name', 'icon', 'color'] }],
     });
+
+    // Evaluate budget thresholds in the background (non-blocking response)
+    if (type === 'expense') {
+      evaluateBudgetAlerts(req.userId).catch(() => {});
+    }
 
     res.status(201).json({ success: true, data: result });
   } catch (error) {

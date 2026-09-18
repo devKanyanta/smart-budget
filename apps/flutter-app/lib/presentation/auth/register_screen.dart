@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/services/auth_service.dart';
+import '../../core/services/api_exception.dart';
 import '../common/app_colors.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -223,15 +224,32 @@ class _RegisterScreenState extends State<RegisterScreen>
     if (success && mounted) {
       context.go('/');
     } else if (mounted) {
+      final error = auth.error;
+      final message = _friendlyMessage(error);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Registration failed. Please try again.'),
+          content: Text(message),
           backgroundColor: AppColors.expense,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
+  }
+
+  /// Maps backend error codes to plain-language reasons.
+  String _friendlyMessage(ApiException? error) {
+    switch (error?.code) {
+      case 'USER_EXISTS':
+        return 'That email or phone is already registered. Try logging in instead.';
+      case 'VALIDATION_ERROR':
+      case 'CONFLICT':
+        return error?.displayMessage ?? 'Please check the form and try again.';
+      case 'NETWORK_ERROR':
+      case 'NETWORK_TIMEOUT':
+        return 'Cannot reach the server. Check your connection and the API address.';
+    }
+    return error?.displayMessage ?? 'Registration failed. Please try again.';
   }
 
   @override

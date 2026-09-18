@@ -14,6 +14,7 @@ A full-stack mobile budgeting application for the Zambian market. Track transact
 | **Auth** | JWT (access + refresh tokens) |
 | **Offline Storage** | Hive (Flutter) |
 | **Notifications** | Push (FCM) + Email |
+| **Payments** | Flutterwave (Airtel Money / MTN MoMo top-ups, simulated sandbox fallback) |
 | **Orchestration** | Docker Compose |
 
 ## Quick Start
@@ -62,10 +63,10 @@ This creates:
 
 | Service | URL |
 |---|---|
-| **Backend API** | http://localhost:3000 |
+| **Backend API** | http://localhost:3300 |
 | **Admin Dashboard** | http://localhost:5173 |
 | **ML Service** | http://localhost:5001 |
-| **API Health Check** | http://localhost:3000/api/v1/health |
+| **API Health Check** | http://localhost:3300/api/v1/health |
 
 ### Login Credentials
 
@@ -108,8 +109,13 @@ smart-budget-zm/
 
 ### Budgets
 - `GET /api/v1/budgets` — List budgets with spent amounts
-- `POST /api/v1/budgets` — Create budget
+- `POST /api/v1/budgets` — Create budget (supports `enforce: true` for strict budgets)
 - `GET /api/v1/budgets/:id/spending` — Spending breakdown
+- `GET /api/v1/budgets/alerts` — Budget warnings (generates notifications at the alert threshold / when exceeded)
+- `GET /api/v1/budgets/prediction` — ML overspending & budget-exhaustion prediction for the month
+
+> **Strict budgets:** with `enforce: true`, expense transactions that would push the budget
+> over its limit are rejected with `BUDGET_LIMIT_EXCEEDED` (spending control).
 
 ### Savings Goals
 - `GET /api/v1/savings` — List savings goals
@@ -123,9 +129,21 @@ smart-budget-zm/
 - `GET /api/v1/analytics/category-breakdown` — Spending by category
 - `GET /api/v1/analytics/trends` — Spending trends
 
+### Wallet / Payments (Flutterwave)
+- `GET /api/v1/wallet` — Wallet balance & spending limits
+- `POST /api/v1/wallet/topup` — Top up via Airtel Money / MTN MoMo (Flutterwave)
+- `POST /api/v1/wallet/pay` — Pay from wallet (enforces daily/monthly limits)
+- `GET /api/v1/wallet/transactions` — Wallet transaction history
+- `PUT /api/v1/wallet/limits` — Set daily/monthly spending controls
+- `POST /api/v1/wallet/webhook` — Flutterwave payment webhook (`verif-hash` signed)
+
+> Payments run in **simulated mode** until `FLW_SECRET_KEY` is configured in the backend
+> `.env`. Simulated top-ups credit the wallet instantly and are clearly labelled.
+
 ### ML Service
 - `POST /ml/v1/categorize` — Auto-categorize transaction
 - `POST /ml/v1/predictions/savings/:user_id` — Savings prediction
+- `POST /ml/v1/predictions/overspending` — Overspending / budget-exhaustion prediction
 
 ## Currency
 

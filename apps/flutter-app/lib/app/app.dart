@@ -11,6 +11,8 @@ import '../presentation/budgets/budgets_screen.dart';
 import '../presentation/savings/savings_screen.dart';
 import '../presentation/analytics/analytics_screen.dart';
 import '../presentation/settings/settings_screen.dart';
+import '../presentation/wallet/wallet_screen.dart';
+import '../presentation/notifications/notifications_screen.dart';
 import '../presentation/common/main_scaffold.dart';
 
 class SmartBudgetApp extends StatelessWidget {
@@ -191,6 +193,8 @@ final GoRouter _router = GoRouter(
   routes: [
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
+    GoRoute(path: '/wallet', builder: (context, state) => const WalletScreen()),
+    GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
     ShellRoute(
       builder: (context, state, child) => MainScaffold(child: child),
       routes: [

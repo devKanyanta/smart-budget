@@ -41,6 +41,11 @@ const Budget = sequelize.define('Budget', {
     type: DataTypes.DECIMAL(5, 2),
     defaultValue: 80.0,
   },
+  // Strict budget: block transactions that would push spending past the limit
+  enforce: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
 }, {
   tableName: 'budgets',
 });

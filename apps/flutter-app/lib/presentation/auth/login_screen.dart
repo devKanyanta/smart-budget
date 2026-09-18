@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/services/api_exception.dart';
 import '../../core/services/auth_service.dart';
 import '../common/app_colors.dart';
 
@@ -251,15 +252,33 @@ class _LoginScreenState extends State<LoginScreen>
     if (success && mounted) {
       context.go('/');
     } else if (mounted) {
+      final error = auth.error;
+      final message = _friendlyMessage(error);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Invalid email or password'),
+          content: Text(message),
           backgroundColor: AppColors.expense,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
+  }
+
+  /// Maps backend error codes to plain-language reasons.
+  String _friendlyMessage(ApiException? error) {
+    switch (error?.code) {
+      case 'INVALID_CREDENTIALS':
+        return 'Incorrect email or password.';
+      case 'USER_NOT_FOUND':
+        return 'No account found for that email.';
+      case 'ACCOUNT_INACTIVE':
+        return 'This account is not active. Contact support.';
+      case 'NETWORK_ERROR':
+      case 'NETWORK_TIMEOUT':
+        return 'Cannot reach the server. Check your connection and the API address.';
+    }
+    return error?.displayMessage ?? 'Login failed. Please try again.';
   }
 
   @override

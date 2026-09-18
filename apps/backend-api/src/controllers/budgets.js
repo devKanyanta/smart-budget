@@ -1,6 +1,12 @@
 const { Budget, Category, Transaction } = require('../models');
 const { getCurrentPeriodRange } = require('../utils/dates');
 const { Op } = require('sequelize');
+const {
+  computeBudgetSpending,
+  evaluateBudgetAlerts,
+  checkSpendingControls,
+  predictBudgetExhaustion,
+} = require('../services/budgetAlerts');
 
 // GET /api/v1/budgets
 const listBudgets = async (req, res, next) => {
@@ -15,26 +21,38 @@ const listBudgets = async (req, res, next) => {
 
     // Calculate spent amounts for each budget
     const results = await Promise.all(budgets.map(async (budget) => {
-      const { start, end } = getCurrentPeriodRange(budget.period);
-      const where = {
-        user_id: req.userId,
-        type: 'expense',
-        transaction_date: { [Op.gte]: start, [Op.lt]: end },
-      };
-      if (budget.category_id) where.category_id = budget.category_id;
-
-      const transactions = await Transaction.findAll({ where });
-      const spent = transactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      const { spent, remaining, percentage } = await computeBudgetSpending(budget);
 
       return {
         ...budget.toJSON(),
         spent_amount: spent,
-        remaining: parseFloat(budget.amount) - spent,
-        percentage_used: (spent / parseFloat(budget.amount)) * 100,
+        remaining,
+        percentage_used: percentage,
+        status: percentage > 100 ? 'exceeded' : percentage >= (parseFloat(budget.alert_threshold) || 80) ? 'warning' : 'ok',
       };
     }));
 
     res.json({ success: true, data: results });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/v1/budgets/alerts — evaluate + return budget warnings/notifications
+const getBudgetAlerts = async (req, res, next) => {
+  try {
+    const alerts = await evaluateBudgetAlerts(req.userId);
+    res.json({ success: true, data: alerts });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/v1/budgets/prediction — ML overspending / exhaustion prediction
+const getBudgetPrediction = async (req, res, next) => {
+  try {
+    const prediction = await predictBudgetExhaustion(req.userId);
+    res.json({ success: true, data: prediction });
   } catch (error) {
     next(error);
   }
@@ -57,24 +75,27 @@ const getBudget = async (req, res, next) => {
       });
     }
 
+    const { spent, remaining, percentage } = await computeBudgetSpending(budget);
     const { start, end } = getCurrentPeriodRange(budget.period);
-    const where = {
-      user_id: req.userId,
-      type: 'expense',
-      transaction_date: { [Op.gte]: start, [Op.lt]: end },
-    };
-    if (budget.category_id) where.category_id = budget.category_id;
 
-    const transactions = await Transaction.findAll({ where });
-    const spent = transactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const transactions = await Transaction.findAll({
+      where: {
+        user_id: req.userId,
+        type: 'expense',
+        transaction_date: { [Op.gte]: start, [Op.lt]: end },
+        ...(budget.category_id ? { category_id: budget.category_id } : {}),
+      },
+      include: [{ model: Category, as: 'category', attributes: ['id', 'name', 'icon', 'color'] }],
+      order: [['transaction_date', 'DESC']],
+    });
 
     res.json({
       success: true,
       data: {
         ...budget.toJSON(),
         spent_amount: spent,
-        remaining: parseFloat(budget.amount) - spent,
-        percentage_used: (spent / parseFloat(budget.amount)) * 100,
+        remaining,
+        percentage_used: percentage,
         transaction_count: transactions.length,
       },
     });
@@ -86,7 +107,7 @@ const getBudget = async (req, res, next) => {
 // POST /api/v1/budgets
 const createBudget = async (req, res, next) => {
   try {
-    const { category_id, amount, period, start_date, end_date, alert_threshold } = req.validated.body;
+    const { category_id, amount, period, start_date, end_date, alert_threshold, enforce } = req.validated.body;
 
     const budget = await Budget.create({
       user_id: req.userId,
@@ -96,6 +117,7 @@ const createBudget = async (req, res, next) => {
       start_date,
       end_date: end_date || null,
       alert_threshold: alert_threshold || 80,
+      enforce: enforce || false,
     });
 
     const result = await Budget.findByPk(budget.id, {
@@ -128,6 +150,7 @@ const updateBudget = async (req, res, next) => {
     if (updates.end_date !== undefined) budget.end_date = updates.end_date;
     if (updates.is_active !== undefined) budget.is_active = updates.is_active;
     if (updates.alert_threshold !== undefined) budget.alert_threshold = updates.alert_threshold;
+    if (updates.enforce !== undefined) budget.enforce = updates.enforce;
 
     await budget.save();
 
@@ -223,4 +246,7 @@ module.exports = {
   updateBudget,
   deleteBudget,
   getBudgetSpending,
+  getBudgetAlerts,
+  getBudgetPrediction,
+  checkSpendingControls,
 };

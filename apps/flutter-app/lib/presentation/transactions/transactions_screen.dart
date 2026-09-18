@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/providers/transaction_provider.dart';
+import '../../core/services/auth_service.dart';
 import '../common/app_colors.dart';
 import '../common/app_widgets.dart';
 
@@ -358,6 +359,61 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
   final _descriptionController = TextEditingController();
   String _type = 'expense';
   DateTime _date = DateTime.now();
+  String? _categoryId;
+  List<Map<String, dynamic>> _categories = [];
+  String? _budgetWarning;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final auth = context.read<AuthService>();
+      final response = await auth.api.getCategories();
+      if (mounted) {
+        setState(() {
+          _categories = List<Map<String, dynamic>>.from(response['data'] ?? []);
+        });
+      }
+    } catch (_) {
+      // Categories unavailable; amount-based auto-categorization still applies
+    }
+  }
+
+  /// Live budget warning as the user types an expense amount.
+  Future<void> _checkBudgetWarning() async {
+    if (_type != 'expense') {
+      if (mounted && _budgetWarning != null) setState(() => _budgetWarning = null);
+      return;
+    }
+    final amount = double.tryParse(_amountController.text);
+    if (amount == null || amount <= 0) {
+      if (mounted && _budgetWarning != null) setState(() => _budgetWarning = null);
+      return;
+    }
+    try {
+      final auth = context.read<AuthService>();
+      final response = await auth.api.getBudgets();
+      final budgets = List<Map<String, dynamic>>.from(response['data'] ?? []);
+      for (final b in budgets) {
+        final limit = double.tryParse(b['amount']?.toString() ?? '0') ?? 0;
+        final spent = double.tryParse(b['spent_amount']?.toString() ?? '0') ?? 0;
+        final remaining = limit - spent;
+        if (amount > remaining && remaining >= 0) {
+          final name = b['category']?['name'] ?? 'overall';
+          if (mounted) {
+            setState(() => _budgetWarning =
+                '⚠ This exceeds your $name budget — only K${remaining.toStringAsFixed(0)} left this period.');
+          }
+          return;
+        }
+      }
+    } catch (_) {}
+    if (mounted && _budgetWarning != null) setState(() => _budgetWarning = null);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -418,6 +474,7 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
               controller: _amountController,
               keyboardType: TextInputType.number,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+              onChanged: (_) => _checkBudgetWarning(),
               decoration: InputDecoration(
                 labelText: 'Amount (K)',
                 prefixText: 'K ',
@@ -438,6 +495,20 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                 return null;
               },
             ),
+            if (_budgetWarning != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  _budgetWarning!,
+                  style: const TextStyle(color: AppColors.warning, fontSize: 12),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
 
             // Description
@@ -448,6 +519,28 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
               validator: (v) => v?.isNotEmpty == true ? null : 'Description is required',
+            ),
+            const SizedBox(height: 16),
+
+            // Category picker (optional — auto-categorized if left out)
+            DropdownButtonFormField<String>(
+              value: _categoryId,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'Category (auto if empty)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              items: [
+                const DropdownMenuItem<String>(
+                  value: null,
+                  child: Text('Auto-detect category', style: TextStyle(fontStyle: FontStyle.italic)),
+                ),
+                ..._categories.map((c) => DropdownMenuItem<String>(
+                      value: c['id'] as String,
+                      child: Text(c['name'] ?? 'Category'),
+                    )),
+              ],
+              onChanged: (v) => setState(() => _categoryId = v),
             ),
             const SizedBox(height: 16),
 
@@ -547,11 +640,13 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       'amount': double.parse(_amountController.text),
       'type': _type,
       'description': _descriptionController.text.trim(),
+      if (_categoryId != null) 'category_id': _categoryId,
       'transaction_date': _date.toIso8601String(),
       'source': 'manual',
     });
 
-    if (success && mounted) {
+    if (!mounted) return;
+    if (success) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -559,6 +654,14 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not add transaction — a strict budget may have blocked it, or check your connection.'),
+          backgroundColor: AppColors.expense,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }

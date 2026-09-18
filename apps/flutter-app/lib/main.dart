@@ -10,6 +10,8 @@ import 'core/providers/transaction_provider.dart';
 import 'core/providers/budget_provider.dart';
 import 'core/providers/savings_provider.dart';
 import 'core/providers/dashboard_provider.dart';
+import 'core/providers/wallet_provider.dart';
+import 'core/providers/notification_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +49,14 @@ void main() async {
         ChangeNotifierProxyProvider<AuthService, DashboardProvider>(
           create: (_) => DashboardProvider(),
           update: (_, auth, dp) => dp!..update(auth),
+        ),
+        ChangeNotifierProxyProvider<AuthService, WalletProvider>(
+          create: (_) => WalletProvider(),
+          update: (_, auth, wp) => wp!..update(auth),
+        ),
+        ChangeNotifierProxyProvider<AuthService, NotificationProvider>(
+          create: (_) => NotificationProvider(),
+          update: (_, auth, np) => np!..update(auth),
         ),
       ],
       child: const SmartBudgetApp(),

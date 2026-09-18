@@ -8,6 +8,7 @@ const createBudgetSchema = z.object({
     start_date: z.string().date(),
     end_date: z.string().date().nullable().optional(),
     alert_threshold: z.number().min(0).max(100).optional(),
+    enforce: z.boolean().optional(), // strict budget: block transactions that would exceed it
   }),
 });
 
@@ -18,6 +19,7 @@ const updateBudgetSchema = z.object({
     end_date: z.string().date().nullable().optional(),
     is_active: z.boolean().optional(),
     alert_threshold: z.number().min(0).max(100).optional(),
+    enforce: z.boolean().optional(),
   }),
 });
 

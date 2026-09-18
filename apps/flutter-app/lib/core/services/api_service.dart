@@ -1,8 +1,17 @@
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String _baseUrl = 'http://192.168.0.190:3000/api/v1';
+  /// Base URL of the backend API.
+  ///
+  /// Override at launch without editing code:
+  ///   flutter run --dart-define=API_BASE_URL=http://<host>:<port>/api/v1
+  ///
+  /// Defaults: physical device on the LAN -> the dev machine's IP (port 3300
+  /// matches PORT in apps/backend-api/.env); Android emulator -> 10.0.2.2.
+  static const String _baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://192.168.0.189:3300/api/v1',
+  );
   late final Dio _dio;
   String? _accessToken;
   String? _refreshToken;
@@ -220,6 +229,55 @@ class ApiService {
   // ── Notifications ──
   Future<Map<String, dynamic>> getNotifications({int page = 1}) async {
     final response = await _dio.get('/notifications', queryParameters: {'page': page});
+    return response.data;
+  }
+
+  Future<void> markNotificationRead(String id) async {
+    await _dio.put('/notifications/$id/read');
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    await _dio.put('/notifications/read-all');
+  }
+
+  Future<void> createCategory(Map<String, dynamic> data) async {
+    await _dio.post('/categories', data: data);
+  }
+
+  // ── Budget alerts & ML overspending prediction ──
+  Future<Map<String, dynamic>> getBudgetAlerts() async {
+    final response = await _dio.get('/budgets/alerts');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getBudgetPrediction() async {
+    final response = await _dio.get('/budgets/prediction');
+    return response.data;
+  }
+
+  // ── Wallet / Payments ──
+  Future<Map<String, dynamic>> getWallet() async {
+    final response = await _dio.get('/wallet');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> topUpWallet(Map<String, dynamic> data) async {
+    final response = await _dio.post('/wallet/topup', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> payFromWallet(Map<String, dynamic> data) async {
+    final response = await _dio.post('/wallet/pay', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getWalletTransactions({int page = 1}) async {
+    final response = await _dio.get('/wallet/transactions', queryParameters: {'page': page});
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> updateWalletLimits(Map<String, dynamic> data) async {
+    final response = await _dio.put('/wallet/limits', data: data);
     return response.data;
   }
 

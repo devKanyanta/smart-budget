@@ -12,6 +12,8 @@ const SyncLog = require('./SyncLog');
 const Notification = require('./Notification');
 const FinancialInsight = require('./FinancialInsight');
 const AuditLog = require('./AuditLog');
+const Wallet = require('./Wallet');
+const WalletTransaction = require('./WalletTransaction');
 
 // ─── Associations ────────────────────────────────────────────
 
@@ -71,6 +73,14 @@ FinancialInsight.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(AuditLog, { foreignKey: 'actor_id', as: 'auditActions' });
 AuditLog.belongsTo(User, { foreignKey: 'actor_id', as: 'actor' });
 
+// User ↔ Wallet (one per user)
+User.hasOne(Wallet, { foreignKey: 'user_id', as: 'wallet' });
+Wallet.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+// Wallet ↔ WalletTransaction
+Wallet.hasMany(WalletTransaction, { foreignKey: 'wallet_id', as: 'transactions' });
+WalletTransaction.belongsTo(Wallet, { foreignKey: 'wallet_id', as: 'wallet' });
+
 module.exports = {
   sequelize,
   User,
@@ -86,4 +96,6 @@ module.exports = {
   Notification,
   FinancialInsight,
   AuditLog,
+  Wallet,
+  WalletTransaction,
 };

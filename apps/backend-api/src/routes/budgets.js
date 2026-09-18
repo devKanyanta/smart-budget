@@ -10,9 +10,15 @@ const {
   updateBudget,
   deleteBudget,
   getBudgetSpending,
+  getBudgetAlerts,
+  getBudgetPrediction,
 } = require('../controllers/budgets');
 
 router.use(authenticate);
+
+// Static routes must come before /:id
+router.get('/alerts', getBudgetAlerts);
+router.get('/prediction', getBudgetPrediction);
 
 router.get('/', listBudgets);
 router.get('/:id', getBudget);

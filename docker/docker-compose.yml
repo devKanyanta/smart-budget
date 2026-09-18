@@ -41,6 +41,10 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
+      FLW_SECRET_KEY: ${FLW_SECRET_KEY:-}
+      FLW_BASE_URL: ${FLW_BASE_URL:-https://api.flutterwave.com/v3}
+      FLW_SECRET_HASH: ${FLW_SECRET_HASH:-}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
     volumes:
       - ../apps/backend-api:/app
       - /app/node_modules

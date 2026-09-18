@@ -157,8 +157,13 @@ class DashboardScreen extends StatelessWidget {
                 Row(
                   children: [
                     _buildHeaderIcon(
+                      icon: Icons.account_balance_wallet_rounded,
+                      onTap: () => context.go('/wallet'),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildHeaderIcon(
                       icon: Icons.notifications_outlined,
-                      onTap: () {},
+                      onTap: () => context.go('/notifications'),
                     ),
                     const SizedBox(width: 8),
                     _buildHeaderIcon(

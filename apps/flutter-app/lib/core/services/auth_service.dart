@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_service.dart';
+import 'api_exception.dart';
 
 class AuthService extends ChangeNotifier {
   final ApiService _api = ApiService();
   bool _isAuthenticated = false;
   Map<String, dynamic>? _user;
   bool _isLoading = false;
+  ApiException? _lastError;
 
   bool get isAuthenticated => _isAuthenticated;
   Map<String, dynamic>? get user => _user;
   bool get isLoading => _isLoading;
+  ApiException? get error => _lastError;
   ApiService get api => _api;
 
   AuthService() {
@@ -61,10 +64,13 @@ class AuthService extends ChangeNotifier {
 
         _user = data['user'];
         _isAuthenticated = true;
+        _lastError = null;
         notifyListeners();
         return true;
       }
-    } catch (_) {}
+    } catch (e) {
+      _lastError = ApiException.from(e);
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -102,10 +108,13 @@ class AuthService extends ChangeNotifier {
 
         _user = data['user'];
         _isAuthenticated = true;
+        _lastError = null;
         notifyListeners();
         return true;
       }
-    } catch (_) {}
+    } catch (e) {
+      _lastError = ApiException.from(e);
+    }
 
     _isLoading = false;
     notifyListeners();
