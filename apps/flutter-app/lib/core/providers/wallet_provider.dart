@@ -17,6 +17,14 @@ class WalletProvider extends ChangeNotifier {
       double.tryParse(_wallet?['balance']?.toString() ?? '0') ?? 0.0;
   String get paymentMode => _wallet?['payment_mode'] ?? 'simulated';
 
+  /// Amount currently held (authorized) on the student's card, backing the
+  /// wallet balance. Captured per spend; released when the cycle ends.
+  double get fundsHeldOnCard =>
+      double.tryParse(_wallet?['funds_held_on_card']?.toString() ?? '0') ?? 0.0;
+
+  List<Map<String, dynamic>> get openHolds =>
+      List<Map<String, dynamic>>.from(_wallet?['open_holds'] ?? []);
+
   void update(AuthService auth) {
     _auth = auth;
     if (auth.isAuthenticated) fetchWallet();
@@ -47,32 +55,20 @@ class WalletProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<String?> topUp({
+  /// Pay a budget expense. The amount is captured from the budget's card
+  /// hold (a real card charge via PayPal) and drawn from the matching
+  /// budget allocation — money is ring-fenced per expense category.
+  Future<String?> pay({
     required double amount,
-    required String phoneNumber,
-    required String network,
+    String? description,
+    String? categoryId,
   }) async {
-    if (_auth == null || !_auth!.isAuthenticated) return 'Not signed in';
-    try {
-      final response = await _api.topUpWallet({
-        'amount': amount,
-        'phone_number': phoneNumber,
-        'network': network,
-      });
-      await fetchWallet();
-      await fetchTransactions();
-      return response['data']?['message'] as String?;
-    } catch (e) {
-      return _extractError(e);
-    }
-  }
-
-  Future<String?> pay({required double amount, String? description}) async {
     if (_auth == null || !_auth!.isAuthenticated) return 'Not signed in';
     try {
       await _api.payFromWallet({
         'amount': amount,
         if (description != null) 'description': description,
+        if (categoryId != null) 'category_id': categoryId,
       });
       await fetchWallet();
       await fetchTransactions();
@@ -80,7 +76,9 @@ class WalletProvider extends ChangeNotifier {
     } catch (e) {
       return _extractError(e);
     }
-  }  Future<bool> updateLimits({double? dailyLimit, double? monthlyLimit}) async {
+  }
+
+  Future<bool> updateLimits({double? dailyLimit, double? monthlyLimit}) async {
     if (_auth == null || !_auth!.isAuthenticated) return false;
     try {
       await _api.updateWalletLimits({

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
@@ -38,6 +39,8 @@ class DashboardScreen extends StatelessWidget {
                           _buildSummaryCards(context, data),
                           const SizedBox(height: 8),
                           _buildBudgetCard(context, data),
+                          const SizedBox(height: 8),
+                          _buildNextFundingCard(context),
                           const SizedBox(height: 8),
                           _buildSavingsCard(context, data),
                         ],
@@ -278,6 +281,72 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// "Next Funding Date" card — when the card will next be charged.
+  Widget _buildNextFundingCard(BuildContext context) {
+    final fs = context.watch<DashboardProvider>().fundingStatus;
+    if (fs == null) return const SizedBox.shrink();
+
+    final upcoming = (fs['upcoming_funding'] as List? ?? []);
+    final failed = (fs['failed_funding'] as List? ?? []);
+    if (upcoming.isEmpty && failed.isEmpty) return const SizedBox.shrink();
+
+    final Map<String, dynamic> item = failed.isNotEmpty
+        ? failed.first as Map<String, dynamic>
+        : upcoming.first as Map<String, dynamic>;
+    final isFailed = failed.isNotEmpty;
+    final nextDate = item['next_funding_date'] ?? item['failed_at'];
+    final dateLabel = nextDate != null
+        ? DateFormat('MMMM d').format(DateTime.tryParse(nextDate.toString()) ?? DateTime.now())
+        : '—';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: AppCard(
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isFailed ? const Color(0xFFFFEBEE) : AppColors.primarySurface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isFailed ? Icons.error_outline : Icons.event_repeat_rounded,
+                color: isFailed ? AppColors.expense : AppColors.primary,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isFailed ? 'Funding failed' : 'Next Funding Date',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isFailed
+                        ? '${item['name'] ?? 'Budget'} — update payment method'
+                        : '$dateLabel — K${((item['amount'] ?? 0) as num).toStringAsFixed(0)}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14, color: Colors.black87),
+                  ),
+                ],
+              ),
+            ),
+            if (isFailed)
+              TextButton(
+                onPressed: () => context.push('/link-card'),
+                child: const Text('Fix'),
+              ),
+          ],
+        ),
       ),
     );
   }

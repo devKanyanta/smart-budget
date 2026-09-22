@@ -9,6 +9,9 @@ const registerSchema = z.object({
       .regex(/[a-zA-Z]/, 'Password must contain at least one letter')
       .regex(/[0-9]/, 'Password must contain at least one number'),
     confirm_password: z.string(),
+    // Student information (app is for students)
+    institution: z.string().min(2, 'Institution is required').max(255).optional(),
+    student_id: z.string().min(1, 'Student ID is required').max(100).optional(),
   }).refine((data) => data.password === data.confirm_password, {
     message: 'Passwords do not match',
     path: ['confirm_password'],

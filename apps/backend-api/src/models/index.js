@@ -7,13 +7,15 @@ const Transaction = require('./Transaction');
 const Budget = require('./Budget');
 const SavingsGoal = require('./SavingsGoal');
 const SavingsEntry = require('./SavingsEntry');
-const MobileMoneyAccount = require('./MobileMoneyAccount');
-const SyncLog = require('./SyncLog');
 const Notification = require('./Notification');
 const FinancialInsight = require('./FinancialInsight');
 const AuditLog = require('./AuditLog');
 const Wallet = require('./Wallet');
 const WalletTransaction = require('./WalletTransaction');
+const PaymentMethod = require('./PaymentMethod');
+const BudgetAllocation = require('./BudgetAllocation');
+const FundingAttempt = require('./FundingAttempt');
+const BudgetHold = require('./BudgetHold');
 
 // ─── Associations ────────────────────────────────────────────
 
@@ -53,14 +55,6 @@ SavingsGoal.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 SavingsGoal.hasMany(SavingsEntry, { foreignKey: 'savings_goal_id', as: 'entries' });
 SavingsEntry.belongsTo(SavingsGoal, { foreignKey: 'savings_goal_id', as: 'savingsGoal' });
 
-// User ↔ MobileMoneyAccount
-User.hasMany(MobileMoneyAccount, { foreignKey: 'user_id', as: 'mobileMoneyAccounts' });
-MobileMoneyAccount.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
-
-// MobileMoneyAccount ↔ SyncLog
-MobileMoneyAccount.hasMany(SyncLog, { foreignKey: 'mobile_money_account_id', as: 'syncLogs' });
-SyncLog.belongsTo(MobileMoneyAccount, { foreignKey: 'mobile_money_account_id', as: 'account' });
-
 // User ↔ Notification
 User.hasMany(Notification, { foreignKey: 'user_id', as: 'notifications' });
 Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -81,6 +75,42 @@ Wallet.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 Wallet.hasMany(WalletTransaction, { foreignKey: 'wallet_id', as: 'transactions' });
 WalletTransaction.belongsTo(Wallet, { foreignKey: 'wallet_id', as: 'wallet' });
 
+// BudgetHold ↔ WalletTransaction (each capture is a wallet tx drawn from a hold)
+BudgetHold.hasMany(WalletTransaction, { foreignKey: 'hold_id', as: 'captures' });
+WalletTransaction.belongsTo(BudgetHold, { foreignKey: 'hold_id', as: 'hold' });
+
+// User ↔ PaymentMethod
+User.hasMany(PaymentMethod, { foreignKey: 'user_id', as: 'paymentMethods' });
+PaymentMethod.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+// Budget ↔ BudgetAllocation
+Budget.hasMany(BudgetAllocation, { foreignKey: 'budget_id', as: 'allocations' });
+BudgetAllocation.belongsTo(Budget, { foreignKey: 'budget_id', as: 'budget' });
+
+// Category ↔ BudgetAllocation
+Category.hasMany(BudgetAllocation, { foreignKey: 'category_id', as: 'budgetAllocations' });
+BudgetAllocation.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
+
+// Budget ↔ FundingAttempt
+Budget.hasMany(FundingAttempt, { foreignKey: 'budget_id', as: 'fundingAttempts' });
+FundingAttempt.belongsTo(Budget, { foreignKey: 'budget_id', as: 'budget' });
+
+// PaymentMethod ↔ FundingAttempt
+PaymentMethod.hasMany(FundingAttempt, { foreignKey: 'payment_method_id', as: 'fundingAttempts' });
+FundingAttempt.belongsTo(PaymentMethod, { foreignKey: 'payment_method_id', as: 'paymentMethod' });
+
+// Budget ↔ BudgetHold (card authorization per funding cycle)
+Budget.hasMany(BudgetHold, { foreignKey: 'budget_id', as: 'holds' });
+BudgetHold.belongsTo(Budget, { foreignKey: 'budget_id', as: 'budget' });
+
+// PaymentMethod ↔ BudgetHold
+PaymentMethod.hasMany(BudgetHold, { foreignKey: 'payment_method_id', as: 'budgetHolds' });
+BudgetHold.belongsTo(PaymentMethod, { foreignKey: 'payment_method_id', as: 'paymentMethod' });
+
+// FundingAttempt ↔ BudgetHold
+FundingAttempt.hasOne(BudgetHold, { foreignKey: 'funding_attempt_id', as: 'hold' });
+BudgetHold.belongsTo(FundingAttempt, { foreignKey: 'funding_attempt_id', as: 'fundingAttempt' });
+
 module.exports = {
   sequelize,
   User,
@@ -91,11 +121,13 @@ module.exports = {
   Budget,
   SavingsGoal,
   SavingsEntry,
-  MobileMoneyAccount,
-  SyncLog,
   Notification,
   FinancialInsight,
   AuditLog,
   Wallet,
   WalletTransaction,
+  PaymentMethod,
+  BudgetAllocation,
+  FundingAttempt,
+  BudgetHold,
 };

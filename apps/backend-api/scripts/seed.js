@@ -5,8 +5,9 @@ require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const sequelize = require('../src/config/database');
 const {
   User, AdminUser, Category, Transaction, Budget,
-  SavingsGoal, SavingsEntry, MobileMoneyAccount, Notification, FinancialInsight,
+  SavingsGoal, SavingsEntry, Notification, FinancialInsight,
 } = require('../src/models');
+// PaymentMethod / BudgetAllocation / Wallet models loaded inside seed() below
 const { DEFAULT_CATEGORIES } = require('../src/config/constants');
 
 const RESET = process.argv.includes('--reset');
@@ -19,18 +20,24 @@ const USERS = [
     full_name: 'Khadijah Zimba',
     phone_number: '+260971234567',
     password: 'password123',
+    institution: 'University of Zambia',
+    student_id: 'UNZA-2026-0451',
   },
   {
     email: 'james@example.com',
     full_name: 'James Phiri',
     phone_number: '+260961234567',
     password: 'password123',
+    institution: 'Copperbelt University',
+    student_id: 'CBU-2026-1187',
   },
   {
     email: 'grace@example.com',
     full_name: 'Grace Mwamba',
     phone_number: '+260951234567',
     password: 'password123',
+    institution: 'Mulungushi University',
+    student_id: 'MU-2026-0332',
   },
   {
     email: 'admin@smartbudgetzm.com',
@@ -134,6 +141,9 @@ async function seed() {
           phone_number: userData.phone_number,
           password_hash: await bcrypt.hash(userData.password, 12),
           status: 'active',
+          is_student: !userData.isAdmin,
+          institution: userData.institution || null,
+          student_id: userData.student_id || null,
         },
       });
       users.push(user);
@@ -270,32 +280,6 @@ async function seed() {
     }
     console.log('  → Savings goals seeded');
 
-    // ── Mobile Money Accounts ──
-    console.log('📱 Seeding mobile money accounts...');
-    const mmUsers = users.filter((u) => u.email !== 'admin@smartbudgetzm.com');
-    for (const user of mmUsers) {
-      await MobileMoneyAccount.findOrCreate({
-        where: { user_id: user.id, provider: 'airtel_money' },
-        defaults: {
-          phone_number: user.phone_number,
-          display_name: `Airtel Money - ${user.phone_number}`,
-          sync_status: 'synced',
-          last_synced_at: new Date(),
-        },
-      });
-      if (Math.random() > 0.5) {
-        await MobileMoneyAccount.findOrCreate({
-          where: { user_id: user.id, provider: 'mtn_momo' },
-          defaults: {
-            phone_number: user.phone_number,
-            display_name: `MTN MoMo - ${user.phone_number}`,
-            sync_status: 'synced',
-            last_synced_at: new Date(),
-          },
-        });
-      }
-    }
-    console.log('  → Mobile money accounts seeded');
 
     // ── Notifications ──
     console.log('🔔 Seeding notifications...');
@@ -338,6 +322,112 @@ async function seed() {
       }
     }
     console.log('  → Financial insights seeded');
+
+    // ── Linked cards + funded budgets (student flow demo) ──
+    console.log('💳 Seeding linked cards + funded budgets...');
+    const { PaymentMethod, BudgetAllocation, Wallet, WalletTransaction, FundingAttempt, BudgetHold } = require('../src/models');
+    const crypto = require('crypto');
+
+    for (const user of users.filter((u) => u.email !== 'admin@smartbudgetzm.com')) {
+      // Link a demo Visa card (vaulted token; only last4 stored)
+      const [pm] = await PaymentMethod.findOrCreate({
+        where: { user_id: user.id, card_last4: '4242' },
+        defaults: {
+          provider: 'paypal',
+          method_type: 'card',
+          vault_token: 'SIMVAULT-' + crypto.randomBytes(10).toString('hex').toUpperCase(),
+          card_brand: 'Visa',
+          card_last4: '4242',
+          exp_month: 12,
+          exp_year: new Date().getFullYear() + 3,
+          cardholder_name: user.full_name,
+          funding_source_description: 'Visa •• 4242',
+          status: 'active',
+          is_default: true,
+        },
+      });
+
+      // A "Monthly Living Expenses" budget that is funded, with allocations
+      const [budget] = await Budget.findOrCreate({
+        where: { user_id: user.id, name: 'Monthly Living Expenses' },
+        defaults: {
+          amount: 3000,
+          period: 'monthly',
+          frequency: 'monthly',
+          funding_day: 1,
+          start_date: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0],
+          payment_method_id: pm.id,
+          is_active: true,
+          is_funded: true,
+          last_funded_at: new Date(now.getFullYear(), now.getMonth(), 1, 9),
+          next_funding_date: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().split('T')[0],
+        },
+      });
+
+      const allocationPlan = [
+        { category: 'Food', amount: 800, spent: 350 },
+        { category: 'Transport', amount: 400, spent: 250 },
+        { category: 'Housing', amount: 1500, spent: 1500 },
+        { category: 'Communication', amount: 200, spent: 150 },
+        { category: 'Other', amount: 100, spent: 0 },
+      ];
+      for (const ap of allocationPlan) {
+        await BudgetAllocation.findOrCreate({
+          where: { budget_id: budget.id, category_id: categories[ap.category].id },
+          defaults: {
+            allocated_amount: ap.amount,
+            spent_amount: ap.spent,
+            funded_at: new Date(now.getFullYear(), now.getMonth(), 1, 9),
+          },
+        });
+      }
+
+      // Wallet already credited by the seeded funding
+      const [wallet] = await Wallet.findOrCreate({ where: { user_id: user.id }, defaults: { balance: 3000 } });
+      if (wallet.balance === '0.00' || parseFloat(wallet.balance) === 0) {
+        wallet.balance = 3000;
+        await wallet.save();
+      }
+      await WalletTransaction.findOrCreate({
+        where: { wallet_id: wallet.id, provider_reference: `seed:fund-${user.id}` },
+        defaults: {
+          type: 'funding',
+          amount: 3000,
+          balance_after: 3000,
+          status: 'completed',
+          provider: 'paypal',
+          description: 'Budget funding — Monthly Living Expenses',
+        },
+      });
+      await FundingAttempt.findOrCreate({
+        where: { budget_id: budget.id, scheduled_date: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0] },
+        defaults: {
+          amount: 3000,
+          status: 'completed',
+          mode: 'simulated',
+          payment_method_id: pm.id,
+          failure_reason: null,
+        },
+      });
+
+      // Open card hold backing the funded budget (spends capture from it)
+      await BudgetHold.findOrCreate({
+        where: { budget_id: budget.id, status: 'open' },
+        defaults: {
+          funding_attempt_id: null,
+          payment_method_id: pm.id,
+          provider_hold_id: 'SIMAUTH-' + crypto.randomBytes(6).toString('hex').toUpperCase(),
+          provider_reference: `seed:hold-${user.id}`,
+          amount: 3000,
+          amount_captured: 0,
+          currency: 'ZMW',
+          status: 'open',
+          mode: 'simulated',
+          expires_at: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+        },
+      });
+    }
+    console.log('  → Cards + funded budgets + open holds seeded');
 
     console.log('\n🎉 Seeding complete!');
     console.log('\n📋 Login credentials:');

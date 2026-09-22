@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'app/app.dart';
+import 'app/app.dart' show SmartBudgetApp, authService;
 import 'core/services/api_service.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/storage_service.dart';
@@ -31,7 +31,8 @@ void main() async {
         // Core services
         Provider(create: (_) => StorageService()),
         Provider(create: (_) => ApiService()),
-        ChangeNotifierProvider(create: (_) => AuthService()),
+        // Shared app-lifetime instance — also drives the router's onboarding gate
+        ChangeNotifierProvider<AuthService>.value(value: authService),
 
         // Feature providers
         ChangeNotifierProxyProvider<AuthService, TransactionProvider>(

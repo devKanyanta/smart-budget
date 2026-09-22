@@ -41,10 +41,15 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
-      FLW_SECRET_KEY: ${FLW_SECRET_KEY:-}
-      FLW_BASE_URL: ${FLW_BASE_URL:-https://api.flutterwave.com/v3}
-      FLW_SECRET_HASH: ${FLW_SECRET_HASH:-}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_SECRET: ${PAYPAL_SECRET:-}
+      PAYPAL_BASE_URL: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
+      PAYPAL_CURRENCY: ${PAYPAL_CURRENCY:-USD}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_SECRET: ${PAYPAL_SECRET:-}
+      PAYPAL_BASE_URL: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
+      FUNDING_CHECK_INTERVAL_MINUTES: ${FUNDING_CHECK_INTERVAL_MINUTES:-60}
     volumes:
       - ../apps/backend-api:/app
       - /app/node_modules

@@ -11,14 +11,52 @@ class AuthService extends ChangeNotifier {
   bool _isLoading = false;
   ApiException? _lastError;
 
+  /// Whether the student has linked a card (onboarding gate).
+  bool _paymentMethodConnected = false;
+  String _paymentMode = 'simulated';
+  bool _onboardingChecked = false;
+
   bool get isAuthenticated => _isAuthenticated;
   Map<String, dynamic>? get user => _user;
   bool get isLoading => _isLoading;
   ApiException? get error => _lastError;
   ApiService get api => _api;
 
+  /// True once the onboarding status has been fetched for this session.
+  bool get onboardingChecked => _onboardingChecked;
+
+  /// Whether a card is linked — the app requires this before use.
+  bool get isPaymentMethodConnected => _paymentMethodConnected;
+
+  /// 'sandbox' | 'simulated' | 'live'
+  String get paymentMode => _paymentMode;
+
   AuthService() {
     _loadSavedAuth();
+  }
+
+  /// Fetch the card-link onboarding gate status. Safe to call repeatedly.
+  Future<void> checkOnboardingStatus() async {
+    if (!_isAuthenticated) return;
+    try {
+      final response = await _api.getOnboardingStatus();
+      final data = response['data'];
+      _paymentMethodConnected = data?['payment_method_connected'] == true;
+      _paymentMode = data?['payment_mode'] ?? 'simulated';
+      _onboardingChecked = true;
+    } catch (_) {
+      // Network/API failure: don't lock the user out, just retry next time
+      _onboardingChecked = true;
+    }
+    notifyListeners();
+  }
+
+  /// Called after the student links a card so the gate opens immediately.
+  Future<void> markPaymentMethodConnected() async {
+    _paymentMethodConnected = true;
+    _onboardingChecked = true;
+    notifyListeners();
+    await checkOnboardingStatus();
   }
 
   Future<void> _loadSavedAuth() async {
@@ -31,6 +69,9 @@ class AuthService extends ChangeNotifier {
       try {
         await _fetchProfile();
         _isAuthenticated = true;
+        // Onboarding gate for returning users (existing users without
+        // card get prompted)
+        await checkOnboardingStatus();
       } catch (_) {
         _isAuthenticated = false;
         _api.clearTokens();
@@ -83,6 +124,8 @@ class AuthService extends ChangeNotifier {
     String? phoneNumber,
     required String password,
     required String confirmPassword,
+    String? institution,
+    String? studentId,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -94,6 +137,8 @@ class AuthService extends ChangeNotifier {
         phoneNumber: phoneNumber,
         password: password,
         confirmPassword: confirmPassword,
+        institution: institution,
+        studentId: studentId,
       );
       if (response['success']) {
         final data = response['data'];
@@ -110,6 +155,10 @@ class AuthService extends ChangeNotifier {
         _isAuthenticated = true;
         _lastError = null;
         notifyListeners();
+
+        // Onboarding gate: check card status right after auth
+        await checkOnboardingStatus();
+
         return true;
       }
     } catch (e) {
@@ -129,6 +178,8 @@ class AuthService extends ChangeNotifier {
 
     _isAuthenticated = false;
     _user = null;
+    _paymentMethodConnected = false;
+    _onboardingChecked = false;
     notifyListeners();
   }
 }

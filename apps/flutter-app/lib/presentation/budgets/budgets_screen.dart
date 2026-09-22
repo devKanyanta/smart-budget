@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/providers/budget_provider.dart';
 import '../../core/services/auth_service.dart';
@@ -20,6 +21,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   void initState() {
     super.initState();
     _loadPrediction();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<BudgetProvider>().fetchFundingStatus();
+    });
   }
 
   Future<void> _loadPrediction() async {
@@ -115,17 +119,25 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                         ? const EmptyState(
                             icon: Icons.pie_chart_outline,
                             title: 'No Budgets Yet',
-                            subtitle: 'Create a budget to start tracking your spending limits',
+                            subtitle: 'Create a budget, link your card, and it gets funded automatically',
                             actionText: 'Create Budget',
                           )
                         : ListView.builder(
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-                            itemCount: budgetProvider.budgets.length + (_showPredictionBanner ? 1 : 0),
+                            itemCount: budgetProvider.budgets.length +
+                                (_showPredictionBanner ? 1 : 0) +
+                                (_showFundingBanner(budgetProvider) ? 1 : 0),
                             itemBuilder: (context, index) {
-                              if (_showPredictionBanner && index == 0) {
+                              int i = index;
+                              if (_showPredictionBanner && i == 0) {
                                 return _buildPredictionBanner();
                               }
-                              final budget = budgetProvider.budgets[_showPredictionBanner ? index - 1 : index];
+                              if (_showPredictionBanner) i -= 1;
+                              if (_showFundingBanner(budgetProvider) && i == 0) {
+                                return _buildFundingBanner(budgetProvider);
+                              }
+                              if (_showFundingBanner(budgetProvider)) i -= 1;
+                              final budget = budgetProvider.budgets[i];
                               return _buildBudgetCard(context, budget);
                             },
                           ),
@@ -397,201 +409,119 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   }
 
   void _showAddBudgetDialog(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const AddBudgetSheet(),
-    );
-  }
-}
-
-class AddBudgetSheet extends StatefulWidget {
-  const AddBudgetSheet({super.key});
-
-  @override
-  State<AddBudgetSheet> createState() => _AddBudgetSheetState();
-}
-
-class _AddBudgetSheetState extends State<AddBudgetSheet> {
-  final _amountController = TextEditingController();
-  String _period = 'monthly';
-  String? _categoryId;
-  List<Map<String, dynamic>> _categories = [];
-  bool _enforce = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCategories();
+    context.push('/budgets/create');
   }
 
-  Future<void> _loadCategories() async {
-    try {
-      final auth = context.read<AuthService>();
-      final response = await auth.api.getCategories();
-      if (mounted) {
-        setState(() {
-          _categories = List<Map<String, dynamic>>.from(response['data'] ?? []);
-        });
-      }
-    } catch (_) {}
+  /// Show the funding banner when a funding charge failed or is due now.
+  bool _showFundingBanner(BudgetProvider provider) {
+    final fs = provider.fundingStatus;
+    if (fs == null) return false;
+    final failed = (fs['failed_funding'] as List? ?? []).isNotEmpty;
+    final due = (fs['funding_due'] as List? ?? []).isNotEmpty;
+    return failed || due;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 24,
-        right: 24,
-        top: 12,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Create Budget',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 20),
-          TextFormField(
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            decoration: InputDecoration(
-              labelText: 'Budget Amount (K)',
-              prefixText: 'K ',
-              prefixStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            value: _categoryId,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: 'Category (overall budget if empty)',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            items: [
-              const DropdownMenuItem<String>(
-                value: null,
-                child: Text('Overall budget (all categories)', style: TextStyle(fontStyle: FontStyle.italic)),
-              ),
-              ..._categories.map((c) => DropdownMenuItem<String>(
-                    value: c['id'] as String,
-                    child: Text(c['name'] ?? 'Category'),
-                  )),
-            ],
-            onChanged: (v) => setState(() => _categoryId = v),
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            value: _period,
-            decoration: InputDecoration(
-              labelText: 'Period',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            items: const [
-              DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-              DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-              DropdownMenuItem(value: 'quarterly', child: Text('Quarterly')),
-              DropdownMenuItem(value: 'yearly', child: Text('Yearly')),
-            ],
-            onChanged: (v) => setState(() => _period = v ?? 'monthly'),
-          ),
-          const SizedBox(height: 16),
-          // Strict budget toggle — enforces a spending control
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: _enforce ? const Color(0xFFFFF3E0) : Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
+  Widget _buildFundingBanner(BudgetProvider provider) {
+    final fs = provider.fundingStatus!;
+    final failed = (fs['failed_funding'] as List? ?? []);
+    final due = (fs['funding_due'] as List? ?? []);
+
+    if (failed.isNotEmpty) {
+      final f = failed.first as Map<String, dynamic>;
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFEBEE),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.expense.withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Icon(
-                  Icons.shield_rounded,
-                  color: _enforce ? AppColors.warning : Colors.grey[500],
-                  size: 20,
-                ),
-                const SizedBox(width: 10),
+                const Icon(Icons.error_outline, color: AppColors.expense, size: 20),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Strict budget',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: _enforce ? AppColors.warning : Colors.black87,
-                        ),
-                      ),
-                      Text(
-                        'Block transactions that would exceed this limit',
-                        style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                      ),
-                    ],
+                  child: Text(
+                    'Funding failed — ${f['name'] ?? 'budget'}',
+                    style: const TextStyle(
+                        color: AppColors.expense,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13),
                   ),
-                ),
-                Switch(
-                  value: _enforce,
-                  activeColor: AppColors.warning,
-                  onChanged: (v) => setState(() => _enforce = v),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            height: 52,
-            child: ElevatedButton(
-              onPressed: () async {
-                if (_amountController.text.isEmpty) return;
-                final success = await context.read<BudgetProvider>().createBudget({
-                  'amount': double.parse(_amountController.text),
-                  'period': _period,
-                  if (_categoryId != null) 'category_id': _categoryId,
-                  'enforce': _enforce,
-                  'start_date': DateTime.now().toIso8601String().split('T')[0],
-                });
-                if (success && mounted) Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Create Budget', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Text(
+              'K${(f['amount'] as num? ?? 0).toStringAsFixed(2)} could not be charged. Reason: ${f['failure_reason'] ?? 'payment declined'}',
+              style: TextStyle(color: Colors.grey[700], fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push('/link-card'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.expense,
+                      side: const BorderSide(color: AppColors.expense),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    icon: const Icon(Icons.credit_card, size: 16),
+                    label: const Text('Update Payment', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final err = await context.read<BudgetProvider>().retryFunding(f['budget_id'] as String);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(err ?? 'Payment successful — budget funded'),
+                      ));
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.expense,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Retry Payment', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Due-now banner
+    final d = due.first as Map<String, dynamic>;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.event_available, color: AppColors.primary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Funding due for ${d['name'] ?? 'budget'} — K${(d['amount'] as num? ?? 0).toStringAsFixed(0)} will be charged shortly.',
+              style: TextStyle(color: Colors.grey[800], fontSize: 12),
             ),
           ),
-          const SizedBox(height: 16),
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _amountController.dispose();
-    super.dispose();
   }
 }

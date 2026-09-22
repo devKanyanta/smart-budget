@@ -19,6 +19,8 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _institutionController = TextEditingController();
+  final _studentIdController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
@@ -153,6 +155,31 @@ class _RegisterScreenState extends State<RegisterScreen>
               ),
             ),
             const SizedBox(height: 16),
+            // Student information (app is student-exclusive)
+            TextFormField(
+              controller: _institutionController,
+              decoration: InputDecoration(
+                labelText: 'Institution',
+                hintText: 'e.g. University of Zambia',
+                prefixIcon: const Icon(Icons.school_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              validator: (v) =>
+                  v != null && v.trim().length >= 2 ? null : 'Institution is required',
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _studentIdController,
+              decoration: InputDecoration(
+                labelText: 'Student ID',
+                hintText: 'e.g. 2026123456',
+                prefixIcon: const Icon(Icons.badge_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              validator: (v) =>
+                  v != null && v.trim().isNotEmpty ? null : 'Student ID is required',
+            ),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
@@ -219,6 +246,8 @@ class _RegisterScreenState extends State<RegisterScreen>
       phoneNumber: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
       password: _passwordController.text,
       confirmPassword: _confirmPasswordController.text,
+      institution: _institutionController.text.trim(),
+      studentId: _studentIdController.text.trim(),
     );
 
     if (success && mounted) {
@@ -257,6 +286,8 @@ class _RegisterScreenState extends State<RegisterScreen>
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _institutionController.dispose();
+    _studentIdController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _animController.dispose();

@@ -1,18 +1,12 @@
 const { z } = require('zod');
 
-const topUpSchema = z.object({
-  body: z.object({
-    amount: z.number().positive('Top-up amount must be positive').max(50000, 'Top-up amount exceeds maximum'),
-    phone_number: z.string().min(9).max(20),
-    network: z.enum(['airtel_money', 'mtn_momo']),
-    description: z.string().max(255).optional(),
-  }),
-});
-
 const paySchema = z.object({
   body: z.object({
     amount: z.number().positive('Payment amount must be positive'),
     description: z.string().max(255).optional(),
+    // Expense category this payment is drawn from (required — the wallet
+    // only holds budget money, so every payment targets a budget expense)
+    category_id: z.string().uuid().nullable().optional(),
   }),
 });
 
@@ -23,4 +17,4 @@ const limitsSchema = z.object({
   }),
 });
 
-module.exports = { topUpSchema, paySchema, limitsSchema };
+module.exports = { paySchema, limitsSchema };

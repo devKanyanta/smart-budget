@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const sequelize = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
+const { startScheduler } = require('./services/fundingScheduler');
 
 // Route imports
 const authRoutes = require('./routes/auth');
@@ -14,12 +15,12 @@ const transactionRoutes = require('./routes/transactions');
 const categoryRoutes = require('./routes/categories');
 const budgetRoutes = require('./routes/budgets');
 const savingsRoutes = require('./routes/savings');
-const mobileMoneyRoutes = require('./routes/mobileMoney');
 const analyticsRoutes = require('./routes/analytics');
 const insightRoutes = require('./routes/insights');
 const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
 const walletRoutes = require('./routes/wallet');
+const paymentMethodRoutes = require('./routes/paymentMethods');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -58,12 +59,12 @@ app.use('/api/v1/transactions', transactionRoutes);
 app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/budgets', budgetRoutes);
 app.use('/api/v1/savings', savingsRoutes);
-app.use('/api/v1/mobile-money', mobileMoneyRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/insights', insightRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/wallet', walletRoutes);
+app.use('/api/v1/payment-methods', paymentMethodRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -88,6 +89,9 @@ async function start() {
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Smart Budget ZM API running on port ${PORT}`);
     });
+
+    // Automatic budget funding (PayPal charges on funding dates)
+    startScheduler();
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);

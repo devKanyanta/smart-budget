@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../core/services/auth_service.dart';
 import '../presentation/auth/login_screen.dart';
 import '../presentation/auth/register_screen.dart';
 import '../presentation/dashboard/dashboard_screen.dart';
@@ -13,7 +15,13 @@ import '../presentation/analytics/analytics_screen.dart';
 import '../presentation/settings/settings_screen.dart';
 import '../presentation/wallet/wallet_screen.dart';
 import '../presentation/notifications/notifications_screen.dart';
+import '../presentation/payments/link_card_screen.dart';
+import '../presentation/budgets/create_budget_flow_screen.dart';
 import '../presentation/common/main_scaffold.dart';
+
+/// Single app-lifetime auth instance, shared by the router gate and the
+/// widget tree (registered via ChangeNotifierProvider.value in main.dart).
+final AuthService authService = AuthService();
 
 class SmartBudgetApp extends StatelessWidget {
   const SmartBudgetApp({super.key});
@@ -190,11 +198,40 @@ class SmartBudgetApp extends StatelessWidget {
 
 final GoRouter _router = GoRouter(
   initialLocation: '/login',
+  redirect: (context, state) {
+    final auth = context.read<AuthService>();
+    final loggedIn = auth.isAuthenticated;
+    final path = state.uri.path;
+
+    final onAuthScreen = path == '/login' || path == '/register';
+    final onCardScreen = path == '/link-card';
+
+    // Not logged in → auth screens only
+    if (!loggedIn) return onAuthScreen ? null : '/login';
+
+    // Logged in but no card linked → mandatory onboarding gate.
+    // New users land here straight after signup; existing users are sent
+    // here on app open until they link a card.
+    if (!auth.isPaymentMethodConnected && !onCardScreen) {
+      return '/link-card';
+    }
+
+    // Linked but still on an auth/card screen → into the app
+    if (onAuthScreen || (onCardScreen && auth.isPaymentMethodConnected)) {
+      return '/';
+    }
+
+    return null;
+  },
+  // Re-evaluate redirects whenever auth / card-link state changes
+  refreshListenable: authService,
   routes: [
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
     GoRoute(path: '/wallet', builder: (context, state) => const WalletScreen()),
     GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
+    GoRoute(path: '/link-card', builder: (context, state) => const LinkCardScreen()),
+    GoRoute(path: '/budgets/create', builder: (context, state) => const CreateBudgetFlowScreen()),
     ShellRoute(
       builder: (context, state, child) => MainScaffold(child: child),
       routes: [
@@ -208,3 +245,5 @@ final GoRouter _router = GoRouter(
     ),
   ],
 );
+
+

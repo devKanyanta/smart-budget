@@ -38,6 +38,19 @@ const User = sequelize.define('User', {
     type: DataTypes.ENUM('active', 'inactive', 'suspended'),
     defaultValue: 'active',
   },
+  // ── Student information (app is student-focused) ──
+  is_student: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+  },
+  institution: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  student_id: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+  },
 }, {
   tableName: 'users',
 });

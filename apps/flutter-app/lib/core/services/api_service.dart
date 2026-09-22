@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 
+import 'api_exception.dart';
+
 class ApiService {
   /// Base URL of the backend API.
   ///
@@ -81,6 +83,8 @@ class ApiService {
     String? phoneNumber,
     required String password,
     required String confirmPassword,
+    String? institution,
+    String? studentId,
   }) async {
     final response = await _dio.post('/auth/register', data: {
       'email': email,
@@ -88,6 +92,8 @@ class ApiService {
       'phone_number': phoneNumber,
       'password': password,
       'confirm_password': confirmPassword,
+      if (institution != null) 'institution': institution,
+      if (studentId != null) 'student_id': studentId,
     });
     return response.data;
   }
@@ -163,6 +169,24 @@ class ApiService {
 
   Future<Map<String, dynamic>> createBudget(Map<String, dynamic> data) async {
     final response = await _dio.post('/budgets', data: data);
+    return response.data;
+  }
+
+  /// Confirm & activate a budget (schedules funding).
+  Future<Map<String, dynamic>> activateBudget(String id) async {
+    final response = await _dio.post('/budgets/$id/activate');
+    return response.data;
+  }
+
+  /// Retry a failed funding attempt (card charge).
+  Future<Map<String, dynamic>> retryBudgetFunding(String id) async {
+    final response = await _dio.post('/budgets/$id/retry-funding');
+    return response.data;
+  }
+
+  /// Funding overview for the dashboard (due/failed/upcoming + held funds).
+  Future<Map<String, dynamic>> getFundingStatus() async {
+    final response = await _dio.get('/budgets/funding-status');
     return response.data;
   }
 
@@ -261,11 +285,6 @@ class ApiService {
     return response.data;
   }
 
-  Future<Map<String, dynamic>> topUpWallet(Map<String, dynamic> data) async {
-    final response = await _dio.post('/wallet/topup', data: data);
-    return response.data;
-  }
-
   Future<Map<String, dynamic>> payFromWallet(Map<String, dynamic> data) async {
     final response = await _dio.post('/wallet/pay', data: data);
     return response.data;
@@ -281,18 +300,49 @@ class ApiService {
     return response.data;
   }
 
-  // ── Mobile Money ──
-  Future<Map<String, dynamic>> getMobileMoneyAccounts() async {
-    final response = await _dio.get('/mobile-money/accounts');
+  // ── Payment Methods (cards, vaulted via PayPal) ──
+
+  /// Onboarding gate: whether a card is linked + current payment mode.
+  Future<Map<String, dynamic>> getOnboardingStatus() async {
+    final response = await _dio.get('/payment-methods/onboarding-status');
     return response.data;
   }
 
-  Future<Map<String, dynamic>> connectMobileMoney(Map<String, dynamic> data) async {
-    final response = await _dio.post('/mobile-money/accounts', data: data);
+  Future<Map<String, dynamic>> getPaymentMethods() async {
+    final response = await _dio.get('/payment-methods');
     return response.data;
   }
 
-  Future<void> syncMobileMoney(String accountId) async {
-    await _dio.post('/mobile-money/accounts/$accountId/sync');
+  /// Link a card (vaulted with PayPal — no PayPal account needed).
+  /// Link a card. Throws [ApiException] with the backend's real message
+  /// (e.g. validation details, provider errors) instead of a raw DioException.
+  Future<Map<String, dynamic>> linkCard({
+    required String cardNumber,
+    required int expMonth,
+    required int expYear,
+    required String cvv,
+    required String cardholderName,
+  }) async {
+    try {
+      final response = await _dio.post('/payment-methods/link-card', data: {
+        'card_number': cardNumber,
+        'exp_month': expMonth,
+        'exp_year': expYear,
+        'cvv': cvv,
+        'cardholder_name': cardholderName,
+      });
+      return response.data;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
   }
+
+  Future<void> setDefaultPaymentMethod(String id) async {
+    await _dio.put('/payment-methods/$id/default');
+  }
+
+  Future<void> disconnectPaymentMethod(String id) async {
+    await _dio.delete('/payment-methods/$id');
+  }
+
 }

@@ -13,7 +13,7 @@ const WalletTransaction = sequelize.define('WalletTransaction', {
     references: { model: 'wallets', key: 'id' },
   },
   type: {
-    type: DataTypes.ENUM('topup', 'payment'),
+    type: DataTypes.ENUM('topup', 'payment', 'funding', 'allocation_hold', 'hold_release'),
     allowNull: false,
   },
   amount: {
@@ -28,10 +28,16 @@ const WalletTransaction = sequelize.define('WalletTransaction', {
     type: DataTypes.ENUM('pending', 'completed', 'failed', 'reversed'),
     defaultValue: 'pending',
   },
-  // Payment provider details (Flutterwave / mobile money)
+  // Payment provider details (PayPal card processing)
   provider: {
     type: DataTypes.STRING(50),
-    allowNull: true, // e.g. 'flutterwave', 'airtel_money', 'mtn_momo'
+    allowNull: true, // e.g. 'paypal'
+  },
+  // PayPal authorization (hold) id this payment captured from
+  hold_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: { model: 'budget_holds', key: 'id' },
   },
   provider_reference: {
     type: DataTypes.STRING(100),

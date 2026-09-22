@@ -13,7 +13,7 @@ const Notification = sequelize.define('Notification', {
     references: { model: 'users', key: 'id' },
   },
   type: {
-    type: DataTypes.ENUM('budget_alert', 'savings_reminder', 'sync_status', 'insight', 'general'),
+    type: DataTypes.ENUM('budget_alert', 'savings_reminder', 'sync_status', 'insight', 'general', 'funding', 'funding_failed', 'budget_low'),
     allowNull: false,
   },
   title: {

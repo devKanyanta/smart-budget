@@ -1,6 +1,9 @@
 const { v4: uuidv4 } = require('uuid');
-const { Wallet, WalletTransaction, Notification, AuditLog, sequelize } = require('../models');
-const flw = require('../services/flutterwave');
+const {
+  Wallet, WalletTransaction, Notification, AuditLog, BudgetHold, sequelize,
+} = require('../models');
+const paypal = require('../services/paypal');
+const { checkBudgetRestrictions, recordAllocationSpend, findAllocationForSpend } = require('../services/budgetEnforcement');
 
 /**
  * Get or create the user's wallet.
@@ -17,87 +20,38 @@ async function getOrCreateWallet(userId) {
 const getWallet = async (req, res, next) => {
   try {
     const wallet = await getOrCreateWallet(req.userId);
+
+    // Open card holds backing the wallet balance (hold-then-capture model)
+    const holds = await BudgetHold.findAll({
+      where: { status: 'open' },
+      include: [{
+        model: sequelize.models.Budget,
+        as: 'budget',
+        where: { user_id: req.userId },
+        required: true,
+      }],
+      order: [['created_at', 'DESC']],
+    });
+
+    const totalHeld = holds.reduce((sum, h) => sum + (parseFloat(h.amount) - parseFloat(h.amount_captured)), 0);
+
     res.json({
       success: true,
       data: {
         ...wallet.toJSON(),
-        payment_mode: flw.isLiveMode() ? 'live' : 'simulated',
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// POST /api/v1/wallet/topup
-const topUp = async (req, res, next) => {
-  try {
-    const { amount, phone_number, network, description } = req.validated.body;
-    const wallet = await getOrCreateWallet(req.userId);
-
-    if (wallet.status !== 'active') {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'WALLET_INACTIVE', message: 'Wallet is not active' },
-      });
-    }
-
-    const txRef = `SBZ-${uuidv4()}`;
-    const providerName = 'flutterwave';
-    const providerRef = `${providerName}:${txRef}`;
-
-    // Initiate charge with the payment provider (Flutterwave / simulated)
-    const charge = await flw.initiateMobileMoneyCharge({
-      txRef,
-      amount: parseFloat(amount),
-      phoneNumber: phone_number,
-      network: network === 'mtn_momo' ? 'MTN' : 'AIRTEL',
-      redirectUrl: `${process.env.APP_BASE_URL || 'http://localhost:3000'}/api/v1/wallet/redirect`,
-    });
-
-    const walletTx = await WalletTransaction.create({
-      wallet_id: wallet.id,
-      type: 'topup',
-      amount,
-      balance_after: parseFloat(wallet.balance),
-      status: charge.mode === 'simulated' ? 'completed' : charge.status === 'successful' ? 'completed' : 'pending',
-      provider: providerName,
-      provider_reference: providerRef,
-      phone_number,
-      description: description || `Wallet top-up via ${network === 'mtn_momo' ? 'MTN MoMo' : 'Airtel Money'}`,
-      meta: {
-        mode: charge.mode,
-        payment_link: charge.link || null,
-        processor_response: charge.processorResponse || null,
-      },
-    });
-
-    // In simulated mode the "payment" succeeds immediately: credit the wallet now.
-    if (walletTx.status === 'completed') {
-      wallet.balance = parseFloat(wallet.balance) + parseFloat(amount);
-      await wallet.save();
-      await walletTx.update({ balance_after: wallet.balance });
-    }
-
-    await AuditLog.create({
-      actor_id: req.userId,
-      actor_type: 'user',
-      action: 'wallet.topup',
-      resource_type: 'wallet_transaction',
-      resource_id: walletTx.id,
-      details: { amount, mode: charge.mode, provider_reference: providerRef },
-      ip_address: req.ip,
-    });
-
-    res.status(201).json({
-      success: true,
-      data: {
-        transaction: walletTx,
-        payment_link: charge.link || null,
-        mode: charge.mode,
-        message: charge.mode === 'simulated'
-          ? `Simulated top-up successful. K${parseFloat(amount).toFixed(2)} credited (sandbox mode — no real money moved).`
-          : 'Top-up initiated. Complete the payment on your phone or via the payment link.',
+        payment_mode: paypal.getPaymentMode(),
+        funds_held_on_card: totalHeld.toFixed(2),
+        open_holds: holds.map((h) => ({
+          id: h.id,
+          budget_id: h.budget_id,
+          budget_name: h.budget?.name || null,
+          amount: h.amount,
+          amount_captured: h.amount_captured,
+          remaining: (parseFloat(h.amount) - parseFloat(h.amount_captured)).toFixed(2),
+          status: h.status,
+          mode: h.mode,
+          expires_at: h.expires_at,
+        })),
       },
     });
   } catch (error) {
@@ -137,11 +91,18 @@ const listWalletTransactions = async (req, res, next) => {
 };
 
 // POST /api/v1/wallet/pay
+//
+// Budget-item payment. Two-step money movement:
+//   1. Budget enforcement — the category must have an allocation with enough
+//      remaining funds (money is ring-fenced per expense).
+//   2. Card capture — the amount is captured from the budget's PayPal card
+//      hold. This is the REAL card charge: it appears on the student's card
+//      statement and the PayPal dashboard, described with the budget name.
+// The wallet balance is debited only after the capture succeeds.
 const payFromWallet = async (req, res, next) => {
   try {
     const { amount, description } = req.validated.body;
     const wallet = await getOrCreateWallet(req.userId);
-
     const amt = parseFloat(amount);
 
     if (wallet.status !== 'active') {
@@ -151,71 +112,77 @@ const payFromWallet = async (req, res, next) => {
       });
     }
 
-    if (parseFloat(wallet.balance) < amt) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'INSUFFICIENT_FUNDS', message: `Insufficient balance. Available: K${parseFloat(wallet.balance).toFixed(2)}` },
-      });
-    }
-
-    // ── Spending controls: daily / monthly wallet limits ──
-    const now = new Date();
-    const violations = [];
-
-    // Daily limit
-    if (wallet.daily_limit) {
-      const dailyLimit = parseFloat(wallet.daily_limit);
-      const lastReset = wallet.daily_spent_at ? new Date(wallet.daily_spent_at) : null;
-      const isSameDay = lastReset && lastReset.toDateString() === now.toDateString();
-      const dailySpent = isSameDay ? parseFloat(wallet.daily_spent) : 0;
-
-      if (dailySpent + amt > dailyLimit) {
-        violations.push({
-          control: 'daily_limit',
-          limit: dailyLimit,
-          spent_today: dailySpent,
-          message: `Daily wallet limit of K${dailyLimit.toFixed(2)} would be exceeded (K${dailySpent.toFixed(2)} spent today).`,
-        });
-      }
-    }
-
-    // Monthly limit
-    if (wallet.monthly_limit) {
-      const monthlyLimit = parseFloat(wallet.monthly_limit);
-      const lastReset = wallet.monthly_spent_at ? new Date(wallet.monthly_spent_at) : null;
-      const isSameMonth = lastReset && lastReset.getMonth() === now.getMonth() && lastReset.getFullYear() === now.getFullYear();
-      const monthlySpent = isSameMonth ? parseFloat(wallet.monthly_spent) : 0;
-
-      if (monthlySpent + amt > monthlyLimit) {
-        violations.push({
-          control: 'monthly_limit',
-          limit: monthlyLimit,
-          spent_this_month: monthlySpent,
-          message: `Monthly wallet limit of K${monthlyLimit.toFixed(2)} would be exceeded (K${monthlySpent.toFixed(2)} spent this month).`,
-        });
-      }
-    }
-
-    if (violations.length > 0) {
+    // ── Budget-restricted spending (must target a budget allocation) ──
+    const restrictionCategoryId = req.validated.body.category_id || null;
+    const restriction = await checkBudgetRestrictions(req.userId, {
+      amount: amt,
+      categoryId: restrictionCategoryId,
+    });
+    if (!restriction.allowed) {
       return res.status(403).json({
         success: false,
         error: {
-          code: 'SPENDING_LIMIT_EXCEEDED',
-          message: violations[0].message,
-          details: violations,
+          code: 'BUDGET_RESTRICTION',
+          message: restriction.violations[0].message,
+          details: restriction.violations,
         },
       });
     }
 
-    // Debit atomically
+    // ── Capture from the budget's card hold (real charge via PayPal) ──
+    // Pick the hold belonging to the same budget as the allocation that
+    // will be debited, so captures and allocations never drift apart.
+    const target = await findAllocationForSpend(req.userId, restrictionCategoryId, amt);
+    if (!target) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_OPEN_HOLD',
+          message: 'No funded allocation with enough remaining balance for this expense. Fund the budget first.',
+        },
+      });
+    }
+
+    const hold = await BudgetHold.findOne({
+      where: { budget_id: target.budget.id, status: 'open' },
+      order: [['created_at', 'DESC']],
+    });
+
+    if (!hold) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_OPEN_HOLD',
+          message: 'No open card hold for this budget. Fund the budget first.',
+        },
+      });
+    }
+
+    const capture = await paypal.captureFromHold({
+      holdId: hold.provider_hold_id,
+      amount: amt,
+      reference: `SPEND-${uuidv4()}`,
+      description: description || 'Budget expense',
+      isFinal: false,
+    });
+
+    if (capture.status !== 'completed') {
+      return res.status(402).json({
+        success: false,
+        error: {
+          code: 'CAPTURE_FAILED',
+          message: capture.failureReason || 'The card could not be charged for this expense.',
+        },
+      });
+    }
+
+    // ── Debit wallet + record the spend atomically ──
+    const now = new Date();
     const result = await sequelize.transaction(async (t) => {
       const freshWallet = await Wallet.findByPk(wallet.id, { transaction: t, lock: t.LOCK.UPDATE });
-      if (parseFloat(freshWallet.balance) < amt) {
-        throw Object.assign(new Error('Insufficient balance'), { statusCode: 400, code: 'INSUFFICIENT_FUNDS' });
-      }
-      freshWallet.balance = parseFloat(freshWallet.balance) - amt;
 
-      // Update rolling daily/monthly spend trackers
+      // Rolling daily/monthly spend trackers (informational now — the hard
+      // limit is the budget allocation itself)
       const lastDaily = freshWallet.daily_spent_at ? new Date(freshWallet.daily_spent_at) : null;
       if (!lastDaily || lastDaily.toDateString() !== now.toDateString()) {
         freshWallet.daily_spent = amt;
@@ -232,7 +199,22 @@ const payFromWallet = async (req, res, next) => {
       }
       freshWallet.monthly_spent_at = now;
 
+      // Guard: wallet balance must cover the spend (wallet mirrors captured funds)
+      if (parseFloat(freshWallet.balance) < amt) {
+        throw Object.assign(new Error('Insufficient balance'), { statusCode: 400, code: 'INSUFFICIENT_FUNDS' });
+      }
+
+      freshWallet.balance = parseFloat(freshWallet.balance) - amt;
       await freshWallet.save({ transaction: t });
+
+      // Update the hold's captured amount; finalize when fully captured
+      const holdRow = await BudgetHold.findByPk(hold.id, { transaction: t, lock: t.LOCK.UPDATE });
+      holdRow.amount_captured = parseFloat(holdRow.amount_captured) + amt;
+      const fullyCaptured =
+        parseFloat(holdRow.amount_captured) >= parseFloat(holdRow.amount) - 0.005;
+      holdRow.status = fullyCaptured ? 'captured' : 'open';
+      holdRow.captured_at = fullyCaptured ? now : holdRow.captured_at;
+      await holdRow.save({ transaction: t });
 
       const walletTx = await WalletTransaction.create({
         wallet_id: freshWallet.id,
@@ -240,10 +222,25 @@ const payFromWallet = async (req, res, next) => {
         amount: amt,
         balance_after: freshWallet.balance,
         status: 'completed',
-        description: description || 'Wallet payment',
+        provider: 'paypal',
+        provider_reference: capture.providerReference,
+        hold_id: hold.id,
+        description: description || 'Budget expense',
+        meta: {
+          category_id: restrictionCategoryId,
+          budget_id: hold.budget_id,
+          capture_mode: capture.mode,
+        },
       }, { transaction: t });
 
-      return { freshWallet, walletTx };
+      // ── Record spending against the budget allocation ──
+      const allocation = await recordAllocationSpend(req.userId, {
+        categoryId: restrictionCategoryId,
+        amount: amt,
+        transaction: t,
+      });
+
+      return { freshWallet, walletTx, allocation };
     });
 
     await AuditLog.create({
@@ -252,7 +249,12 @@ const payFromWallet = async (req, res, next) => {
       action: 'wallet.payment',
       resource_type: 'wallet_transaction',
       resource_id: result.walletTx.id,
-      details: { amount: amt, balance_after: result.freshWallet.balance },
+      details: {
+        amount: amt,
+        balance_after: result.freshWallet.balance,
+        hold_id: hold.id,
+        provider_reference: capture.providerReference,
+      },
       ip_address: req.ip,
     });
 
@@ -261,6 +263,8 @@ const payFromWallet = async (req, res, next) => {
       data: {
         transaction: result.walletTx,
         balance: result.freshWallet.balance,
+        allocation: result.allocation,
+        hold_remaining: (parseFloat(hold.amount) - parseFloat(hold.amount_captured) - amt).toFixed(2),
       },
     });
   } catch (error) {
@@ -284,78 +288,10 @@ const updateLimits = async (req, res, next) => {
   }
 };
 
-/**
- * Flutterwave webhook (POST /api/v1/wallet/webhook).
- * Verifies the payload signature when FLW_SECRET_HASH is configured,
- * then credits the wallet for successful top-ups (live mode only).
- */
-const webhook = async (req, res, next) => {
-  try {
-    const secretHash = process.env.FLW_SECRET_HASH;
-    if (secretHash) {
-      const signature = req.headers['verif-hash'];
-      if (!signature || signature !== secretHash) {
-        return res.status(401).json({ success: false, error: { code: 'INVALID_SIGNATURE', message: 'Invalid webhook signature' } });
-      }
-    }
-
-    const event = req.body;
-    if (event['event.type'] !== 'Mobile money transaction' && event.type !== 'mobile_money_zambia') {
-      // Accept generic charge.completed events for any wallet top-up
-    }
-
-    const data = event.data || {};
-    const txRef = data.tx_ref;
-
-    if (!txRef) {
-      return res.status(400).json({ success: false, error: { code: 'INVALID_PAYLOAD', message: 'Missing tx_ref' } });
-    }
-
-    const walletTx = await WalletTransaction.findOne({ where: { provider_reference: `flutterwave:${txRef}` } });
-    if (!walletTx) {
-      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Transaction not found' } });
-    }
-
-    if (walletTx.status === 'completed') {
-      return res.json({ success: true, data: { message: 'Already processed' } });
-    }
-
-    if (data.status === 'successful') {
-      await sequelize.transaction(async (t) => {
-        const wallet = await Wallet.findByPk(walletTx.wallet_id, { transaction: t, lock: t.LOCK.UPDATE });
-        wallet.balance = parseFloat(wallet.balance) + parseFloat(walletTx.amount);
-        await wallet.save({ transaction: t });
-        await walletTx.update({
-          status: 'completed',
-          balance_after: wallet.balance,
-          provider_tx_id: data.id ? String(data.id) : null,
-        }, { transaction: t });
-      });
-
-      // Notify user of successful top-up
-      const wallet = await Wallet.findByPk(walletTx.wallet_id);
-      await Notification.create({
-        user_id: wallet.user_id,
-        type: 'general',
-        title: 'Wallet top-up successful',
-        body: `K${parseFloat(walletTx.amount).toFixed(2)} has been credited to your wallet.`,
-      });
-    } else {
-      await walletTx.update({ status: 'failed' });
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    next(error);
-  }
-};
-
 module.exports = {
   getWallet,
-  topUp,
   listWalletTransactions,
   payFromWallet,
   updateLimits,
-  webhook,
   getOrCreateWallet,
 };

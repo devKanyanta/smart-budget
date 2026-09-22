@@ -31,7 +31,7 @@ const generateTokens = (userId) => {
 // POST /api/v1/auth/register
 const register = async (req, res, next) => {
   try {
-    const { email, full_name, phone_number, password } = req.validated.body;
+    const { email, full_name, phone_number, password, institution, student_id } = req.validated.body;
 
     // Check existing user
     const existing = await User.findOne({ where: { [Op.or]: [{ email }, ...(phone_number ? [{ phone_number }] : [])] } });
@@ -43,7 +43,15 @@ const register = async (req, res, next) => {
     }
 
     const password_hash = await bcrypt.hash(password, 12);
-    const user = await User.create({ email, full_name, phone_number, password_hash });
+    const user = await User.create({
+      email,
+      full_name,
+      phone_number: phone_number || null,
+      password_hash,
+      is_student: true,
+      institution: institution || null,
+      student_id: student_id || null,
+    });
 
     const tokens = generateTokens(user.id);
 
@@ -75,6 +83,9 @@ const register = async (req, res, next) => {
           phone_number: user.phone_number,
           currency: user.currency,
           status: user.status,
+          is_student: user.is_student,
+          institution: user.institution,
+          student_id: user.student_id,
         },
         ...tokens,
       },
@@ -141,6 +152,9 @@ const login = async (req, res, next) => {
           phone_number: user.phone_number,
           currency: user.currency,
           status: user.status,
+          is_student: user.is_student,
+          institution: user.institution,
+          student_id: user.student_id,
         },
         ...tokens,
       },

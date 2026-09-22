@@ -46,6 +46,45 @@ const Budget = sequelize.define('Budget', {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  // ── Funding (auto-charge a linked payment method on the funding date) ──
+  name: {
+    type: DataTypes.STRING(255),
+    allowNull: true, // e.g. "September Monthly Expenses"
+  },
+  frequency: {
+    type: DataTypes.ENUM('one_time', 'weekly', 'monthly', 'quarterly', 'yearly'),
+    defaultValue: 'monthly',
+  },
+  // Day of the period on which funding is collected (1-28 to stay valid in every month)
+  funding_day: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    validate: { min: 1, max: 28 },
+  },
+  payment_method_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: { model: 'payment_methods', key: 'id' },
+  },
+  // Total amount collected (funded) to date
+  funded_amount: {
+    type: DataTypes.DECIMAL(12, 2),
+    defaultValue: 0.0,
+  },
+  // Whether the current funding cycle has been collected successfully
+  is_funded: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  // Next date the payment method will be charged
+  next_funding_date: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+  },
+  last_funded_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
 }, {
   tableName: 'budgets',
 });
