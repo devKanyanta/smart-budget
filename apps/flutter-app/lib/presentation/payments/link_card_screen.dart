@@ -11,7 +11,7 @@ import '../common/app_colors.dart';
 /// Link Card screen (onboarding gate).
 ///
 /// Students link a **card** — no PayPal account needed. The card is vaulted
-/// with PayPal (the processor); Smart Budget ZM never stores card numbers
+/// with PayPal (the processor); Student Kwacha never stores card numbers
 /// or CVVs, only the brand, last 4 digits and expiry for display.
 class LinkCardScreen extends StatefulWidget {
   const LinkCardScreen({super.key});

@@ -1,4 +1,4 @@
-# Smart Budget ZM 💰
+# Student Kwacha 💰
 
 A full-stack mobile budgeting application for the Zambian market, built for **students**. Create monthly budgets, connect PayPal, and have your budget funded automatically on the date you choose — with money **restricted to the expense category it was allocated to**. Track transactions, set savings goals, and receive personalized financial insights.
 
@@ -75,7 +75,7 @@ This creates:
 | User | khadijah@example.com | password123 |
 | User | james@example.com | password123 |
 | User | grace@example.com | password123 |
-| Admin | admin@smartbudgetzm.com | admin123 |
+| Admin | admin@studentkwacha.com | admin123 |
 
 Seeded users are students with a linked Visa card (•• 4242) and a funded "Monthly Living Expenses" budget (Food K800, Transport K400, Housing K1,500, Communication K200, Other K100 — K3,000 total).
 

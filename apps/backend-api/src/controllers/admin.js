@@ -181,7 +181,7 @@ const getSystemConfig = async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        app_name: 'Smart Budget ZM',
+        app_name: 'Student Kwacha',
         version: '1.0.0',
         environment: process.env.NODE_ENV || 'development',
         default_currency: 'ZMW',

@@ -23,8 +23,8 @@ import '../presentation/common/main_scaffold.dart';
 /// widget tree (registered via ChangeNotifierProvider.value in main.dart).
 final AuthService authService = AuthService();
 
-class SmartBudgetApp extends StatelessWidget {
-  const SmartBudgetApp({super.key});
+class StudentKwachaApp extends StatelessWidget {
+  const StudentKwachaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +37,7 @@ class SmartBudgetApp extends StatelessWidget {
     ));
 
     return MaterialApp.router(
-      title: 'Smart Budget ZM',
+      title: 'Student Kwacha',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

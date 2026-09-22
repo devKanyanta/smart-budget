@@ -46,7 +46,7 @@ function check(name, condition, detail = '') {
 
 async function main() {
   console.log('\n════════════════════════════════════════════════');
-  console.log(' Smart Budget ZM — User Flow Verification');
+  console.log(' Student Kwacha — User Flow Verification');
   console.log('════════════════════════════════════════════════\n');
 
   await sequelize.authenticate();

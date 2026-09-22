@@ -7,13 +7,13 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: smart_budget_zm
+      POSTGRES_DB: student_kwacha
       POSTGRES_USER: sbz_user
       POSTGRES_PASSWORD: ${DB_PASSWORD:-sbz_dev_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sbz_user -d smart_budget_zm"]
+      test: ["CMD-SHELL", "pg_isready -U sbz_user -d student_kwacha"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -31,7 +31,7 @@ services:
     environment:
       PORT: 3000
       NODE_ENV: development
-      DATABASE_URL: postgresql://sbz_user:${DB_PASSWORD:-sbz_dev_password}@postgres:5432/smart_budget_zm
+      DATABASE_URL: postgresql://sbz_user:${DB_PASSWORD:-sbz_dev_password}@postgres:5432/student_kwacha
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-key-change-in-production}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-key-change-in-production}
       JWT_EXPIRY: 15m
@@ -63,7 +63,7 @@ services:
       - "5001:5001"
     environment:
       PORT: 5001
-      DATABASE_URL: postgresql://sbz_user:${DB_PASSWORD:-sbz_dev_password}@postgres:5432/smart_budget_zm
+      DATABASE_URL: postgresql://sbz_user:${DB_PASSWORD:-sbz_dev_password}@postgres:5432/student_kwacha
       MODEL_PATH: ./models
       LOG_LEVEL: INFO
     volumes:

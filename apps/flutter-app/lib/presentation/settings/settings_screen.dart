@@ -68,7 +68,7 @@ class SettingsScreen extends StatelessWidget {
           _buildCardGroup([
             _buildSettingsTile(
               icon: Icons.info_outline_rounded,
-              title: 'About Smart Budget ZM',
+              title: 'About Student Kwacha',
               subtitle: 'Version 1.0.0',
               color: AppColors.blueSolid,
               onTap: () {},
@@ -322,7 +322,7 @@ class SettingsScreen extends StatelessWidget {
           ],
         ),
         content: const Text(
-          'Smart Budget ZM provides financial insights and recommendations based on your transaction data. '
+          'Student Kwacha provides financial insights and recommendations based on your transaction data. '
           'These insights are for informational purposes only and should not be considered professional financial advice. '
           'Please consult a qualified financial advisor for important financial decisions.',
           style: TextStyle(fontSize: 14, height: 1.5),

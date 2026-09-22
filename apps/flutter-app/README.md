@@ -1,4 +1,4 @@
-# Smart Budget ZM - Flutter App
+# Student Kwacha - Flutter App
 
 Android-first mobile budgeting application for the Zambian market.
 

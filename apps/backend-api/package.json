@@ -1,7 +1,7 @@
 {
   "name": "sbz-backend-api",
   "version": "1.0.0",
-  "description": "Smart Budget ZM Backend API",
+  "description": "Student Kwacha Backend API",
   "main": "src/app.js",
   "scripts": {
     "dev": "node --watch src/app.js",

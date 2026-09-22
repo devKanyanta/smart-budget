@@ -7,7 +7,7 @@ from app.api.training import router as training_router
 from app.api.overspending import router as overspending_router
 
 app = FastAPI(
-    title="Smart Budget ZM - ML Service",
+    title="Student Kwacha - ML Service",
     description="Transaction categorization and savings prediction ML service",
     version="1.0.0",
 )

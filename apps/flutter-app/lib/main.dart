@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'app/app.dart' show SmartBudgetApp, authService;
+import 'app/app.dart' show StudentKwachaApp, authService;
 import 'core/services/api_service.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/storage_service.dart';
@@ -60,7 +60,7 @@ void main() async {
           update: (_, auth, np) => np!..update(auth),
         ),
       ],
-      child: const SmartBudgetApp(),
+      child: const StudentKwachaApp(),
     ),
   );
 }

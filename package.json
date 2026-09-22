@@ -1,8 +1,8 @@
 {
-  "name": "smart-budget-zm",
+  "name": "student-kwacha",
   "version": "1.0.0",
   "private": true,
-  "description": "Smart Budget ZM - Personal financial management for Zambia",
+  "description": "Student Kwacha - Personal financial management for Zambia",
   "scripts": {
     "dev": "docker-compose up",
     "dev:backend": "cd apps/backend-api && npm run dev",

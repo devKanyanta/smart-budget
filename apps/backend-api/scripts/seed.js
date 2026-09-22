@@ -40,7 +40,7 @@ const USERS = [
     student_id: 'MU-2026-0332',
   },
   {
-    email: 'admin@smartbudgetzm.com',
+    email: 'admin@studentkwacha.com',
     full_name: 'System Admin',
     phone_number: '+260991234567',
     password: 'admin123',
@@ -115,6 +115,8 @@ async function seed() {
       await sequelize.sync({ force: true });
       console.log('✅ Database reset');
     } else {
+      // Remove pre-rename demo data (the app was previously "Smart Budget ZM")
+      await sequelize.query("DELETE FROM users WHERE email = 'admin@smartbudgetzm.com'");
       await sequelize.sync({ alter: true });
     }
 
@@ -163,7 +165,7 @@ async function seed() {
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
 
     for (const user of users) {
-      if (user.email === 'admin@smartbudgetzm.com') continue; // Skip admin for transactions
+      if (user.email === 'admin@studentkwacha.com') continue; // Skip admin for transactions
 
       const transactionCount = 0;
 
@@ -220,7 +222,7 @@ async function seed() {
     ];
 
     for (const user of users) {
-      if (user.email === 'admin@smartbudgetzm.com') continue;
+      if (user.email === 'admin@studentkwacha.com') continue;
       for (const bt of budgetTemplates) {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         await Budget.findOrCreate({
@@ -249,7 +251,7 @@ async function seed() {
     ];
 
     for (const user of users) {
-      if (user.email === 'admin@smartbudgetzm.com') continue;
+      if (user.email === 'admin@studentkwacha.com') continue;
       for (const st of savingsTemplates) {
         const [goal] = await SavingsGoal.findOrCreate({
           where: { user_id: user.id, name: st.name },
@@ -284,13 +286,13 @@ async function seed() {
     // ── Notifications ──
     console.log('🔔 Seeding notifications...');
     for (const user of users) {
-      if (user.email === 'admin@smartbudgetzm.com') continue;
+      if (user.email === 'admin@studentkwacha.com') continue;
       const notifTemplates = [
         { type: 'budget_alert', title: 'Budget Alert', body: "You've used 85% of your Food budget this month." },
         { type: 'savings_reminder', title: 'Savings Reminder', body: "Don't forget to add to your Emergency Fund this week!" },
         { type: 'insight', title: 'Weekly Insight', body: 'Your spending on Transport increased by 15% this week.' },
         { type: 'sync_status', title: 'Sync Complete', body: '12 new transactions synced from Airtel Money.' },
-        { type: 'general', title: 'Welcome to Smart Budget ZM!', body: 'Start tracking your finances today. Set up budgets and savings goals.' },
+        { type: 'general', title: 'Welcome to Student Kwacha!', body: 'Start tracking your finances today. Set up budgets and savings goals.' },
       ];
       for (const nt of notifTemplates) {
         await Notification.create({
@@ -305,7 +307,7 @@ async function seed() {
     // ── Financial Insights ──
     console.log('💡 Seeding financial insights...');
     for (const user of users) {
-      if (user.email === 'admin@smartbudgetzm.com') continue;
+      if (user.email === 'admin@studentkwacha.com') continue;
       const insightTemplates = [
         { insight_type: 'spending_tip', title: 'High Food Spending', body: 'Your food expenses are above average this month. Consider cooking more at home to save.', priority: 'medium' },
         { insight_type: 'savings_tip', title: 'Savings Goal on Track', body: "Great job! You're on track to meet your Emergency Fund goal by the target date.", priority: 'low' },
@@ -328,7 +330,7 @@ async function seed() {
     const { PaymentMethod, BudgetAllocation, Wallet, WalletTransaction, FundingAttempt, BudgetHold } = require('../src/models');
     const crypto = require('crypto');
 
-    for (const user of users.filter((u) => u.email !== 'admin@smartbudgetzm.com')) {
+    for (const user of users.filter((u) => u.email !== 'admin@studentkwacha.com')) {
       // Link a demo Visa card (vaulted token; only last4 stored)
       const [pm] = await PaymentMethod.findOrCreate({
         where: { user_id: user.id, card_last4: '4242' },
@@ -434,7 +436,7 @@ async function seed() {
     console.log('  User:    khadijah@example.com / password123');
     console.log('  User:    james@example.com / password123');
     console.log('  User:    grace@example.com / password123');
-    console.log('  Admin:   admin@smartbudgetzm.com / admin123');
+    console.log('  Admin:   admin@studentkwacha.com / admin123');
 
     process.exit(0);
   } catch (error) {

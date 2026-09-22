@@ -70,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen>
                     _buildLogo(),
                     const SizedBox(height: 32),
                     Text(
-                      'Smart Budget ZM',
+                      'Student Kwacha',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,

@@ -6,7 +6,7 @@ const sequelize = require('../config/database');
  *
  * Card-only by default: the card is vaulted with PayPal (the processor) and
  * we store ONLY the vault token + display fields (brand, last4, expiry).
- * Full card numbers and CVVs are never stored or logged by Smart Budget ZM.
+ * Full card numbers and CVVs are never stored or logged by Student Kwacha.
  *
  * PayPal-account linking is still supported for users who prefer it, but the
  * app onboards students through card linking — no PayPal account required.

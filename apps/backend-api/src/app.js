@@ -87,7 +87,7 @@ async function start() {
     console.log('✅ Database synced');
 
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Smart Budget ZM API running on port ${PORT}`);
+      console.log(`🚀 Student Kwacha API running on port ${PORT}`);
     });
 
     // Automatic budget funding (PayPal charges on funding dates)
