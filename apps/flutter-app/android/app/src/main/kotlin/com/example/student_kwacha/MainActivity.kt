@@ -1,4 +1,4 @@
-package com.example.smart_budget_zm
+package com.example.student_kwacha
 
 import io.flutter.embedding.android.FlutterActivity
 

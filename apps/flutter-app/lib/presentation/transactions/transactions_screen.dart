@@ -641,7 +641,8 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       'type': _type,
       'description': _descriptionController.text.trim(),
       if (_categoryId != null) 'category_id': _categoryId,
-      'transaction_date': _date.toIso8601String(),
+      // Backend requires a full ISO-8601 timestamp with timezone offset.
+      'transaction_date': _date.toUtc().toIso8601String(),
       'source': 'manual',
     });
 
@@ -657,9 +658,16 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
         ),
       );
     } else {
+      final error = context.read<TransactionProvider>().lastError;
+      final message = switch (error?.code) {
+        'BUDGET_LIMIT_EXCEEDED' => 'Blocked: strict budget limit exceeded for this category.',
+        'WALLET_LIMIT_EXCEEDED' => 'Blocked: wallet spending limit reached.',
+        _ => error?.displayMessage ??
+            'Could not add transaction — check your connection and try again.',
+      };
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not add transaction — a strict budget may have blocked it, or check your connection.'),
+        SnackBar(
+          content: Text(message),
           backgroundColor: AppColors.expense,
           behavior: SnackBarBehavior.floating,
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/api_exception.dart';
 import '../services/auth_service.dart';
 
 class TransactionProvider extends ChangeNotifier {
@@ -8,6 +9,7 @@ class TransactionProvider extends ChangeNotifier {
   Map<String, dynamic>? _summary;
   bool _isLoading = false;
   AuthService? _auth;
+  ApiException? _lastError;
 
   List<Map<String, dynamic>> get transactions => _transactions;
   Map<String, dynamic>? get pagination => _pagination;
@@ -54,11 +56,16 @@ class TransactionProvider extends ChangeNotifier {
     try {
       await _api.createTransaction(data);
       await fetchTransactions();
+      _lastError = null;
       return true;
-    } catch (_) {
+    } catch (e) {
+      _lastError = ApiException.from(e);
       return false;
     }
   }
+
+  /// The real reason the last attempt failed, if any.
+  ApiException? get lastError => _lastError;
 
   Future<bool> deleteTransaction(String id) async {
     if (_auth == null || !_auth!.isAuthenticated) return false;

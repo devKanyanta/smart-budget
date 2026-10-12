@@ -28,7 +28,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-xl shadow-md w-96">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-green-700">Smart Budget ZM</h1>
+          <h1 className="text-2xl font-bold text-green-700">Student Kwacha</h1>
           <p className="text-gray-500 text-sm">Admin Dashboard</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -31,7 +31,7 @@ A full-stack mobile budgeting application for the Zambian market, built for **st
 ```bash
 # Clone the repo
 git clone <repo-url>
-cd smart-budget-zm
+cd student-kwacha
 
 # Copy environment file
 cp .env.example .env
@@ -133,7 +133,7 @@ node scripts/smoke-api.js http://127.0.0.1:3399/api/v1
 ## Project Structure
 
 ```
-smart-budget-zm/
+student-kwacha/
 ├── apps/
 │   ├── flutter-app/          # Flutter mobile app (Android)
 │   ├── backend-api/          # Node.js Express REST API
@@ -141,8 +141,8 @@ smart-budget-zm/
 │   └── admin-dashboard/      # React + Vite admin panel
 ├── docker/
 │   └── docker-compose.yml    # Service orchestration
-├── Smart_Budget_ZM_URD.md    # User Requirements Document
-├── Smart_Budget_ZM-spec.md   # System Specification
+├── Student_Kwacha_URD.md    # User Requirements Document
+├── Student_Kwacha-spec.md   # System Specification
 └── README.md
 ```
 

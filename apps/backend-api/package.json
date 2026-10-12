@@ -1,5 +1,5 @@
 {
-  "name": "sbz-backend-api",
+  "name": "student-kwacha-backend-api",
   "version": "1.0.0",
   "description": "Student Kwacha Backend API",
   "main": "src/app.js",

@@ -1,6 +1,6 @@
-# Smart Budget ZM — System Specification
+# Student Kwacha — System Specification
 
-**Based on:** `Smart_Budget_ZM_URD.md` (v1.0)
+**Based on:** `Student_Kwacha_URD.md` (v1.0)
 **Date:** 28 August 2026
 **Status:** Draft — awaiting implementation
 
@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary
 
-Smart Budget ZM is a full-stack mobile budgeting application for the Zambian market. It allows users to track financial transactions (including mobile money), set budgets, create savings goals, receive personalized financial insights, and view analytics. An Android-first Flutter app connects to a Node.js/Express backend, with a separate Python ML microservice for transaction categorization and savings predictions. A React-based web admin dashboard provides system management. The database is PostgreSQL, deployed self-hosted.
+Student Kwacha is a full-stack mobile budgeting application for the Zambian market. It allows users to track financial transactions (including mobile money), set budgets, create savings goals, receive personalized financial insights, and view analytics. An Android-first Flutter app connects to a Node.js/Express backend, with a separate Python ML microservice for transaction categorization and savings predictions. A React-based web admin dashboard provides system management. The database is PostgreSQL, deployed self-hosted.
 
 ---
 
@@ -29,7 +29,7 @@ Smart Budget ZM is a full-stack mobile budgeting application for the Zambian mar
 ### 2.1 Project Structure (Monorepo)
 
 ```
-smart-budget-zm/
+student-kwacha/
 ├── apps/
 │   ├── flutter-app/        # Flutter mobile app
 │   ├── backend-api/        # Node.js Express API
@@ -663,8 +663,8 @@ services:
     image: postgres:16
     ports: ["5432:5432"]
     environment:
-      POSTGRES_DB: smart_budget_zm
-      POSTGRES_USER: sbz_user
+      POSTGRES_DB: student_kwacha
+      POSTGRES_USER: student_kwacha_user
       POSTGRES_PASSWORD: ${DB_PASSWORD}
 
   backend-api:
@@ -672,7 +672,7 @@ services:
     ports: ["3000:3000"]
     depends_on: [postgres]
     environment:
-      DATABASE_URL: postgresql://sbz_user:${DB_PASSWORD}@postgres:5432/smart_budget_zm
+      DATABASE_URL: postgresql://student_kwacha_user:${DB_PASSWORD}@postgres:5432/student_kwacha
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       ML_SERVICE_URL: http://ml-service:5001
@@ -696,7 +696,7 @@ services:
 ```
 PORT=3000
 NODE_ENV=development
-DATABASE_URL=postgresql://sbz_user:password@localhost:5432/smart_budget_zm
+DATABASE_URL=postgresql://student_kwacha_user:password@localhost:5432/student_kwacha
 JWT_SECRET=your-secret-key
 JWT_REFRESH_SECRET=your-refresh-secret
 JWT_EXPIRY=15m
@@ -712,7 +712,7 @@ FCM_SERVER_KEY=your-fcm-key
 ### ML Service (.env)
 ```
 PORT=5001
-DATABASE_URL=postgresql://sbz_user:password@localhost:5432/smart_budget_zm
+DATABASE_URL=postgresql://student_kwacha_user:password@localhost:5432/student_kwacha
 MODEL_PATH=./models
 LOG_LEVEL=INFO
 ```

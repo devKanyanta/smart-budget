@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://sbz_user:sbz_dev_password@localhost:5432/student_kwacha")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://student_kwacha_user:student_kwacha_dev_password@localhost:5432/student_kwacha")
 MODEL_PATH = os.getenv("MODEL_PATH", "./models")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 

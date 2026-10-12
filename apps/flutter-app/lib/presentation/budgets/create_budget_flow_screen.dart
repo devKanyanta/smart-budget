@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers/budget_provider.dart';
+import '../../core/services/api_exception.dart';
 import '../../core/services/auth_service.dart';
 import '../common/app_colors.dart';
 
@@ -119,7 +120,7 @@ class _CreateBudgetFlowScreenState extends State<CreateBudgetFlowScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _creating = false);
-        _snack('Could not create budget: $e');
+        _snack('Could not create budget: ${ApiException.from(e).displayMessage}');
       }
     }
   }

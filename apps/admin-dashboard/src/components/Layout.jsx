@@ -25,7 +25,7 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="w-64 bg-white shadow-md flex flex-col">
         <div className="p-4 border-b">
-          <h1 className="text-lg font-bold text-green-700">💰 Smart Budget ZM</h1>
+          <h1 className="text-lg font-bold text-green-700">💰 Student Kwacha</h1>
           <p className="text-xs text-gray-500">Admin Dashboard</p>
         </div>
 

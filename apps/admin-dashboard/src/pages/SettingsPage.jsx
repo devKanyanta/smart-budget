@@ -26,7 +26,7 @@ export default function SettingsPage() {
         <div className="space-y-3">
           <div className="flex justify-between py-2 border-b">
             <span className="text-gray-600">Application Name</span>
-            <span className="font-medium">{config?.app_name || 'Smart Budget ZM'}</span>
+            <span className="font-medium">{config?.app_name || 'Student Kwacha'}</span>
           </div>
           <div className="flex justify-between py-2 border-b">
             <span className="text-gray-600">Version</span>
@@ -48,12 +48,12 @@ export default function SettingsPage() {
       <div className="bg-white rounded-xl p-6 shadow-sm">
         <h3 className="font-bold mb-4">About</h3>
         <p className="text-gray-600 text-sm">
-          Smart Budget ZM is a mobile budgeting application designed for the Zambian market.
+          Student Kwacha is a mobile budgeting application designed for the Zambian market.
           It provides transaction tracking, budgeting, savings goals, and financial insights
           to help users manage their personal finances effectively.
         </p>
         <p className="text-gray-500 text-xs mt-4">
-          Financial Disclaimer: All insights and recommendations provided by Smart Budget ZM
+          Financial Disclaimer: All insights and recommendations provided by Student Kwacha
           are for informational purposes only and should not be considered professional financial advice.
         </p>
       </div>

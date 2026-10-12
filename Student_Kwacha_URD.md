@@ -1,9 +1,9 @@
 # User Requirements Document (URD)
 
-## Smart Budget ZM
+## Student Kwacha
 
 **Document Type:** User Requirements Document  
-**Project Title:** Smart Budget ZM  
+**Project Title:** Student Kwacha  
 **Student:** Khadijah Zimba  
 **Supervisor:** Mr A. Theu  
 **Department:** Computer Science  
@@ -17,7 +17,7 @@
 
 ## 1.1 Purpose of the Document
 
-This User Requirements Document (URD) defines the user-oriented requirements for **Smart Budget ZM**, a mobile budgeting and personal financial management application designed specifically for the Zambian market.
+This User Requirements Document (URD) defines the user-oriented requirements for **Student Kwacha**, a mobile budgeting and personal financial management application designed specifically for the Zambian market.
 
 The document translates the project proposal into clear, testable requirements that can guide system design, development, testing, deployment, and evaluation.
 
@@ -25,7 +25,7 @@ The system is intended to help users track their financial transactions, underst
 
 ## 1.2 Background
 
-Mobile money services are widely used in Zambia, but many users still manage their personal finances manually or do not systematically track their spending. Smart Budget ZM is proposed as a localized budgeting solution that combines transaction tracking, spending categorization, savings prediction, financial goals, analytics, and intelligent financial guidance.
+Mobile money services are widely used in Zambia, but many users still manage their personal finances manually or do not systematically track their spending. Student Kwacha is proposed as a localized budgeting solution that combines transaction tracking, spending categorization, savings prediction, financial goals, analytics, and intelligent financial guidance.
 
 The application will provide users with an interactive dashboard where they can monitor their financial behavior and receive insights based on their transaction history.
 
@@ -35,11 +35,11 @@ Many users of mobile money services in Zambia have limited access to intelligent
 
 As a result, users may have difficulty identifying unnecessary spending, monitoring their budgets, planning savings, and understanding changes in their financial behavior over time.
 
-Smart Budget ZM seeks to address this gap through a localized mobile application that combines financial tracking with analytics and intelligent budgeting features.
+Student Kwacha seeks to address this gap through a localized mobile application that combines financial tracking with analytics and intelligent budgeting features.
 
 ## 1.4 Project Aim
 
-The aim of Smart Budget ZM is to develop a mobile budgeting application that integrates with local mobile money services and provides intelligent financial management tools to promote financial literacy, improve budgeting practices, and encourage savings among Zambian users.
+The aim of Student Kwacha is to develop a mobile budgeting application that integrates with local mobile money services and provides intelligent financial management tools to promote financial literacy, improve budgeting practices, and encourage savings among Zambian users.
 
 ---
 
@@ -659,7 +659,7 @@ All software libraries, APIs, datasets, models, and third-party services used by
 
 **As a** new user,  
 **I want** to create an account,  
-**so that** I can securely use Smart Budget ZM.
+**so that** I can securely use Student Kwacha.
 
 **Acceptance Criteria:**
 
@@ -802,7 +802,7 @@ The project may be constrained by:
 
 # 16. Expected Outcomes
 
-Smart Budget ZM is expected to produce the following outcomes:
+Student Kwacha is expected to produce the following outcomes:
 
 ## 16.1 Improved Financial Literacy
 
@@ -847,7 +847,7 @@ The project may be evaluated using the following KPIs:
 
 # 18. Acceptance of the System
 
-The Smart Budget ZM system shall be considered ready for academic evaluation when:
+The Student Kwacha system shall be considered ready for academic evaluation when:
 
 1. Users can register and securely authenticate.
 2. Users can manage their profiles.
@@ -881,7 +881,7 @@ The Smart Budget ZM system shall be considered ready for academic evaluation whe
 
 | Version | Date | Description | Author |
 |---|---|---|---|
-| 1.0 | 28 August 2026 | Initial URD based on the Smart Budget ZM project proposal | Khadijah Zimba |
+| 1.0 | 28 August 2026 | Initial URD based on the Student Kwacha project proposal | Khadijah Zimba |
 
 ---
 

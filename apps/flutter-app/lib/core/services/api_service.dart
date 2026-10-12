@@ -10,10 +10,7 @@ class ApiService {
   ///
   /// Defaults: physical device on the LAN -> the dev machine's IP (port 3300
   /// matches PORT in apps/backend-api/.env); Android emulator -> 10.0.2.2.
-  static const String _baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://192.168.0.189:3300/api/v1',
-  );
+  static const String _baseUrl = 'http://64.227.39.246:3356/api/v1';
   late final Dio _dio;
   String? _accessToken;
   String? _refreshToken;
