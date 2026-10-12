@@ -14,7 +14,7 @@ class DailyExpense(BaseModel):
 
 
 class OverspendingRequest(BaseModel):
-    daily_expenses: List[DailyExpense]
+    daily_expenses: List[DailyExpense] = Field(min_length=1)
     total_budget: float = Field(gt=0)
     days_elapsed: int = Field(gt=0)
     days_in_month: int = Field(gt=0, le=31)
